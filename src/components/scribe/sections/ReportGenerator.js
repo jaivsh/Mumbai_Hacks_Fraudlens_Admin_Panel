@@ -1,0 +1,124 @@
+import React, { useState } from 'react';
+
+const reportOptions = [
+  'Internal SOC Post-Mortem',
+  'Executive Summary',
+  'CERT-In Incident Report (India)',
+  'GDPR Data Breach Notification (Draft)',
+  'ISO 27001 Incident Evidence'
+];
+
+const ReportGenerator = ({
+  onGenerate,
+  generatedReport,
+  isGenerating,
+  onDownload,
+  onSendEmail,
+  reportMeta,
+  defaultRecipients,
+  defaultSubjects,
+  errorMessage
+}) => {
+  const [incidentId, setIncidentId] = useState('');
+  const [reportType, setReportType] = useState(reportOptions[0]);
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    if (!incidentId.trim()) return;
+    onGenerate({ reportType, incidentId: incidentId.trim() });
+  };
+
+  const hasReport = Boolean(generatedReport);
+
+  return (
+    <div>
+      <header className="scribe-section-header">
+        <div>
+          <p className="scribe-eyebrow">On-Demand Report Generator</p>
+          <h2>Generate On-Demand Report</h2>
+          <p>Create instant compliance outputs for any incident document.</p>
+        </div>
+      </header>
+
+      <form className="scribe-form" onSubmit={handleSubmit}>
+        <label>
+          <span>Report Type</span>
+          <select value={reportType} onChange={(e) => setReportType(e.target.value)}>
+            {reportOptions.map(option => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label>
+          <span>Incident ID</span>
+          <input
+            type="text"
+            placeholder="e.g. txn_20241118_abcd1234"
+            value={incidentId}
+            onChange={(e) => setIncidentId(e.target.value)}
+          />
+        </label>
+
+        <div className="scribe-hint">
+          <p>
+            Default recipients:{' '}
+            {(defaultRecipients?.[reportType] || []).join(', ') || '—'}
+          </p>
+          <p>
+            Subject line:{' '}
+            {defaultSubjects?.[reportType]?.replace('[INCIDENT_ID]', incidentId || 'INCIDENT_ID')}
+          </p>
+        </div>
+
+        <div className="scribe-actions">
+          <button type="submit" className="scribe-btn primary" disabled={isGenerating}>
+            {isGenerating ? 'Generating...' : 'Generate & Preview Report'}
+          </button>
+        </div>
+      </form>
+
+      {errorMessage && <p className="scribe-error">{errorMessage}</p>}
+
+      <div className="scribe-preview">
+        <div className="scribe-preview-header">
+          <div>
+            <p className="scribe-eyebrow">Preview</p>
+            <h3>{hasReport ? reportMeta?.reportType : 'Report Output'}</h3>
+            {reportMeta?.incidentId && <p>Incident • {reportMeta.incidentId}</p>}
+          </div>
+          <div className="scribe-preview-buttons">
+            <button
+              className="scribe-btn secondary"
+              onClick={onDownload}
+              disabled={!hasReport}
+            >
+              Download as PDF
+            </button>
+            <button
+              className="scribe-btn outline"
+              onClick={onSendEmail}
+              disabled={!hasReport}
+            >
+              Send Email
+            </button>
+          </div>
+        </div>
+        <div className="scribe-preview-body">
+          {hasReport ? (
+            <pre>{generatedReport}</pre>
+          ) : (
+            <p className="scribe-placeholder">
+              Generated content will appear here in Markdown, JSON, or plaintext based on the template.
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ReportGenerator;
+

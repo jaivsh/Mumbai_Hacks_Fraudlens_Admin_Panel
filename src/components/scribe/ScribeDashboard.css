@@ -1,0 +1,483 @@
+.scribe-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 24px 64px;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: radial-gradient(circle at top left, #eef2ff 0%, transparent 45%),
+    radial-gradient(circle at 20% 80%, #ecfeff 0%, transparent 30%),
+    #f3f4f6;
+}
+
+.scribe-breadcrumb a {
+  color: #93c5fd;
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.scribe-hero {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 24px;
+  margin-bottom: 32px;
+  padding: 32px;
+  border-radius: 32px;
+  background: #0f172a;
+  color: white;
+  position: relative;
+  overflow: hidden;
+}
+
+.scribe-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.4), transparent 40%),
+    radial-gradient(circle at 80% 30%, rgba(14, 165, 233, 0.3), transparent 45%);
+  opacity: 0.9;
+  pointer-events: none;
+}
+
+.scribe-hero > * {
+  position: relative;
+  z-index: 1;
+}
+
+.scribe-hero h1 {
+  margin: 6px 0 10px;
+  font-size: 38px;
+  font-weight: 700;
+}
+
+.scribe-subtitle {
+  color: rgba(255, 255, 255, 0.7);
+  margin: 0 0 18px;
+  max-width: 560px;
+}
+
+.scribe-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.scribe-hero__chips {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.scribe-chip {
+  padding: 12px 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  min-width: 120px;
+}
+
+.scribe-chip span {
+  display: block;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.scribe-chip small {
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 11px;
+}
+
+.scribe-hero__card {
+  background: rgba(15, 23, 42, 0.85);
+  border-radius: 24px;
+  padding: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+}
+
+.scribe-hero__card h3 {
+  margin-top: 0;
+}
+
+.scribe-hero__card ul {
+  padding-left: 18px;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.scribe-hero__note {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(37, 99, 235, 0.15);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  color: #bfdbfe;
+}
+
+.scribe-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 24px;
+}
+
+.scribe-card {
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 24px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  padding: 32px;
+  box-shadow: 0 30px 60px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(16px);
+}
+
+.scribe-card.full-span {
+  grid-column: 1 / -1;
+}
+
+.scribe-section-header h2 {
+  margin: 6px 0;
+  font-size: 22px;
+}
+
+.scribe-section-header p {
+  margin: 4px 0;
+  color: #6b7280;
+}
+
+.scribe-eyebrow {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #9ca3af;
+  margin-bottom: 4px;
+}
+
+.scribe-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.scribe-form label span {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.scribe-form input,
+.scribe-form select,
+.scribe-form textarea {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.scribe-form input:focus,
+.scribe-form select:focus,
+.scribe-form textarea:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.scribe-hint {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: #1d4ed8;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.scribe-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.scribe-error {
+  color: #dc2626;
+  margin: 8px 0 0;
+  font-size: 14px;
+}
+
+.scribe-preview {
+  border: 1px dashed #cbd5f5;
+  border-radius: 12px;
+  padding: 20px;
+  background: #f9fafb;
+}
+
+.scribe-preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.scribe-preview-body {
+  margin-top: 16px;
+  background: white;
+  border-radius: 12px;
+  padding: 18px;
+  min-height: 180px;
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid #e5e7eb;
+}
+
+.scribe-preview-body pre {
+  white-space: pre-wrap;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+  margin: 0;
+  color: #1f2937;
+}
+
+.scribe-placeholder {
+  color: #94a3b8;
+  text-align: center;
+  margin: 0;
+}
+
+.scribe-btn {
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.scribe-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.scribe-btn.primary {
+  background: #2563eb;
+  color: white;
+  box-shadow: 0 15px 35px rgba(37, 99, 235, 0.35);
+}
+
+.scribe-btn.secondary {
+  background: #1f2937;
+  color: white;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.25);
+}
+
+.scribe-btn.outline {
+  background: transparent;
+  border: 1px solid #cbd5f5;
+  color: #1f2937;
+}
+
+.scribe-btn.outline.ghost {
+  border-color: rgba(255, 255, 255, 0.5);
+  color: white;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.scribe-toast {
+  background: #111827;
+  color: white;
+  padding: 12px 18px;
+  border-radius: 10px;
+  margin-bottom: 16px;
+  box-shadow: 0 15px 35px rgba(15, 23, 42, 0.3);
+  animation: fadeIn 0.2s ease;
+}
+
+.scribe-preview-buttons {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.scribe-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  margin: 16px 0;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.scribe-switch {
+  position: relative;
+  display: inline-block;
+  width: 46px;
+  height: 24px;
+}
+
+.scribe-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.scribe-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #d1d5db;
+  transition: 0.2s;
+  border-radius: 34px;
+}
+
+.scribe-slider::before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.2s;
+  border-radius: 50%;
+}
+
+.scribe-switch input:checked + .scribe-slider {
+  background-color: #2563eb;
+}
+
+.scribe-switch input:checked + .scribe-slider::before {
+  transform: translateX(22px);
+}
+
+.scribe-table-wrapper {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.scribe-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.scribe-table th,
+.scribe-table td {
+  padding: 14px 16px;
+  text-align: left;
+  font-size: 14px;
+}
+
+.scribe-table thead {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.scribe-table tbody tr + tr {
+  border-top: 1px solid #e2e8f0;
+}
+
+.scribe-table-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.scribe-status {
+  margin-top: 12px;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.scribe-modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 20;
+}
+
+.scribe-modal {
+  background: white;
+  border-radius: 16px;
+  padding: 28px;
+  width: min(720px, 90vw);
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 30px 60px rgba(15, 23, 42, 0.3);
+}
+
+.scribe-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.scribe-docs-section {
+  margin-bottom: 18px;
+}
+
+.scribe-docs-section h3 {
+  margin-bottom: 6px;
+  color: #111827;
+}
+
+.scribe-docs-section p,
+.scribe-docs-section ol,
+.scribe-docs-section ul {
+  margin: 0 0 8px;
+  color: #475569;
+}
+
+.scribe-docs-section code {
+  background: #f1f5f9;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+@media (max-width: 900px) {
+  .scribe-hero {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .scribe-card {
+    padding: 20px;
+  }
+
+  .scribe-preview-header,
+  .scribe-hero__actions {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .scribe-preview-buttons {
+    width: 100%;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
