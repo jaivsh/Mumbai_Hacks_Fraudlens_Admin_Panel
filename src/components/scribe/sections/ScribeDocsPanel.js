@@ -19,16 +19,23 @@ const ScribeDocsPanel = ({ open, onClose }) => {
         <section className="scribe-docs-section">
           <h3>What is Scribe?</h3>
           <p>
-            Scribe is your on-call compliance analyst. Give it any incident ID and it instantly
-            produces SOC post-mortems, executive summaries, CERT-In drafts, GDPR notifications, or
-            ISO 27001 evidence packs—ready to download or email to the right stakeholders.
+            Scribe is your on-call compliance analyst for HaRBInger 2025. Give it any incident ID and it
+            produces RBI Fraud Reports (FMR-style), CERT-In drafts, executive summaries, SOC post-mortems,
+            GDPR notifications, and ISO 27001 evidence packs—ready to download or email.
+          </p>
+        </section>
+
+        <section className="scribe-docs-section">
+          <h3>Who receives what (concerned authorities)</h3>
+          <p>
+            <strong>IT / Compliance</strong> get RBI Fraud Report, CERT-In Report, SOC Post-Mortem, and ISO evidence (they submit to RBI/CERT-In as required). <strong>Leadership</strong> get the Executive Summary. <strong>DPO / Legal</strong> get the GDPR draft. Recipients are configured per report type so each doc goes to the right authority. See <strong>SCRIBE_AUTHORITIES.md</strong> in this folder for the full list and how to make Scribe autonomous.
           </p>
         </section>
 
         <section className="scribe-docs-section">
           <h3>How to generate a report</h3>
           <ol>
-            <li><strong>Pick a template</strong> that matches your audience (SOC, C-suite, regulator, auditor).</li>
+            <li><strong>Pick a template</strong> that matches your audience (RBI/CERT-In, C-suite, SOC, regulator, auditor).</li>
             <li><strong>Enter the incident ID</strong> you want summarized.</li>
             <li><strong>Click “Generate &amp; Preview”</strong> and let Gemini craft the narrative.</li>
           </ol>

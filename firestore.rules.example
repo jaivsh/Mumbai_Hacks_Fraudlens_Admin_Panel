@@ -1,0 +1,12 @@
+// Example Firestore rules. Copy to firestore.rules and deploy with: firebase deploy --only firestore
+// Enable Email/Password sign-in in Firebase Console > Authentication > Sign-in method.
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /admin_users/{userId} {
+      allow read, write: if request.auth != null;
+    }
+    // Keep your existing rules for transactions, users, ip_logs, scribe_*, etc.
+  }
+}

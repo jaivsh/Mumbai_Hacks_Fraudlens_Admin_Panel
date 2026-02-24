@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+Hyperledger_chain/node_modules
 /.pnp
 .pnp.js
 
@@ -12,6 +13,7 @@
 /build
 
 .env
+Hyperledger_chain/.env
 
 # misc
 .DS_Store

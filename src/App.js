@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, Navigate } from 'react-router-dom';
 import { 
   collection, 
   query, 
@@ -21,32 +21,86 @@ import {
   CheckCircle, 
   XCircle, 
   User, 
+  Users,
   MapPin, 
   TrendingUp,
-  Clock,
   Eye,
   Download,
   RefreshCw,
   Database,
-  Smartphone,
   Search,
-  Filter,
   Map,  
   Wifi,
   Ban,
-  Plus,
-  X,
-  Globe
+  Globe,
+  LogOut,
+  FileWarning,
+  Copy,
+  ExternalLink
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
 import { db } from './firebase';
 import ScribeDashboard from './components/scribe/ScribeDashboard';
+import { generateRequiredReportsForIncident } from './components/scribe/scribeService';
+import { useAuth } from './contexts/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
+import Login from './pages/Login';
+import Signup from './pages/Signup';
+import PendingApproval from './pages/PendingApproval';
+import ExecDashboard from './pages/ExecDashboard';
 
 // Mock Firebase for demo
 // const db = {};
 
 const FraudLensAdminPanel = () => {
+  const { profile, signOut, isIT, adminUsersCollection, isDemo } = useAuth();
   const [activeTab, setActiveTab] = useState('alerts');
+  const [pendingUsers, setPendingUsers] = useState([]);
+  const [approveRole, setApproveRole] = useState({});
+  const [ncrpModalOpen, setNcrpModalOpen] = useState(false);
+  const [ncrpReportTransaction, setNcrpReportTransaction] = useState(null);
+  const [scribeAutoPromptTransactionId, setScribeAutoPromptTransactionId] = useState(null);
+  const [scribeAutoGenerating, setScribeAutoGenerating] = useState(false);
+  const [scribeAutoDoneCount, setScribeAutoDoneCount] = useState(null);
+  const [scribeAutoError, setScribeAutoError] = useState(null);
+
+  // Direct link to NCRP complaint acceptance page so users land closer to the form.
+  const NCRP_PORTAL_URL = 'https://cybercrime.gov.in/Webform/Accept.aspx';
+
+  const buildNCRPReportText = (t) => {
+    const parts = [
+      'Financial fraud incident confirmed via FraudLens Admin.',
+      `Incident ID: ${t.id}`,
+      `Date & Time: ${t.timestamp?.toLocaleString?.() || 'N/A'}`,
+      `Amount: INR ${(t.amount || 0).toLocaleString()}`,
+      `Payer VPA: ${t.payerVpa || 'N/A'}`,
+      `Receiver VPA: ${t.receiverVpa || 'N/A'}`,
+      `Fraud score: ${((t.fraudScore || 0) * 100).toFixed(1)}%`,
+      `Model decision: ${t.modelDecision ? 'FRAUD' : 'SAFE'}`
+    ];
+    if (t.ipData?.ipAddress) {
+      parts.push(`IP: ${t.ipData.ipAddress} (Risk: ${t.ipData.riskScore || 0}%)`);
+      if (t.ipData.country) parts.push(`IP Country: ${t.ipData.country}`);
+    }
+    if (t.locationData?.latitude != null) {
+      parts.push(`Location: ${t.locationData.latitude?.toFixed(4)}, ${t.locationData.longitude?.toFixed(4)}`);
+      parts.push(`Suspicious location: ${t.locationData.isSuspicious ? 'Yes' : 'No'}`);
+    }
+    parts.push('— End of report. Submit this description on the National Cyber Crime Reporting Portal (cybercrime.gov.in).');
+    return parts.join('\n');
+  };
+
+  const openNCRPReportFlow = (transaction) => {
+    setNcrpReportTransaction(transaction);
+    setNcrpModalOpen(true);
+    window.open(NCRP_PORTAL_URL, '_blank', 'noopener,noreferrer');
+  };
+
+  const copyNCRPReportToClipboard = () => {
+    if (!ncrpReportTransaction) return;
+    const text = buildNCRPReportText(ncrpReportTransaction);
+    navigator.clipboard.writeText(text).then(() => alert('Report text copied. Paste it into the NCRP complaint form.'), () => alert('Copy failed. Please select and copy the text manually.'));
+  };
   const [transactions, setTransactions] = useState([]);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [users, setUsers] = useState([]);
@@ -122,14 +176,66 @@ const FraudLensAdminPanel = () => {
     return Object.values(ipAggregation);
   };
 
-  // Load all data from Firestore based on your schema
+  // Load pending admin users (IT only)
   useEffect(() => {
+    if (!isIT || !adminUsersCollection) return;
+    const loadPending = async () => {
+      try {
+        const snap = await getDocs(collection(db, adminUsersCollection));
+        const list = snap.docs
+          .map((d) => ({ id: d.id, ...d.data() }))
+          .filter((u) => u.approved !== true && !u.rejected);
+        setPendingUsers(list);
+      } catch (err) {
+        console.error('Failed to load pending users', err);
+      }
+    };
+    loadPending();
+  }, [isIT, adminUsersCollection]);
+
+  const handleApproveUser = async (uid, role) => {
+    try {
+      await updateDoc(doc(db, adminUsersCollection, uid), {
+        approved: true,
+        role: role || 'it_analyst',
+        updatedAt: Timestamp.now()
+      });
+      setPendingUsers((prev) => prev.filter((u) => u.id !== uid));
+      setApproveRole((prev) => ({ ...prev, [uid]: undefined }));
+      alert('User approved.');
+    } catch (err) {
+      console.error(err);
+      alert('Failed to approve: ' + err.message);
+    }
+  };
+
+  const handleRejectUser = async (uid) => {
+    try {
+      await updateDoc(doc(db, adminUsersCollection, uid), {
+        rejected: true,
+        updatedAt: Timestamp.now()
+      });
+      setPendingUsers((prev) => prev.filter((u) => u.id !== uid));
+      alert('User rejected.');
+    } catch (err) {
+      console.error(err);
+      alert('Failed to reject: ' + err.message);
+    }
+  };
+
+  // Load all data from Firestore (including in demo mode so you can see and correct all features)
+  useEffect(() => {
+    if (!process.env.REACT_APP_FIREBASE_PROJECT_ID) {
+      setError('Firebase not configured. Add REACT_APP_FIREBASE_* variables to .env and restart the app (npm start).');
+      setLoading(false);
+      return;
+    }
     const loadFirestoreData = async () => {
       setLoading(true);
       setError(null);
       
       try {
-        console.log('🔍 Loading Firestore data...123');
+        console.log('🔍 Loading Firestore data...');
         
         // Load IP logs first (unique IPs)
         const ipLogsSnapshot = await getDocs(collection(db, 'ip_logs'));
@@ -210,7 +316,13 @@ const FraudLensAdminPanel = () => {
           },
           (err) => {
             console.error('❌ Error loading transactions:', err);
-            setError('Failed to load transactions: ' + err.message);
+            const msg = err?.message || '';
+            const hint = msg.includes('index') || err?.code === 'failed-precondition'
+              ? ' Add the index from the error link in the console (transactions collection, timestamp descending).'
+              : msg.includes('permission') || err?.code === 'permission-denied'
+                ? ' Firestore rules may be blocking read. Allow read for authenticated users.'
+                : '';
+            setError('Failed to load transactions: ' + err.message + (hint ? ' — ' + hint : ''));
             setLoading(false);
           }
         );
@@ -219,7 +331,13 @@ const FraudLensAdminPanel = () => {
         
       } catch (err) {
         console.error('❌ Error loading data:', err);
-        setError('Failed to connect to database: ' + err.message);
+        const msg = err?.message || '';
+        const hint = msg.includes('index') || err?.code === 'failed-precondition'
+          ? ' Create a Firestore index for transactions (timestamp desc). Check the browser console for the index link.'
+          : msg.includes('permission') || err?.code === 'permission-denied'
+            ? ' Check Firestore rules: allow read for authenticated users or your collections.'
+            : '';
+        setError('Failed to connect to database: ' + err.message + (hint ? ' — ' + hint : ''));
         setLoading(false);
       }
     };
@@ -355,12 +473,41 @@ const FraudLensAdminPanel = () => {
       if (selectedTransaction?.id === transactionId) {
         setSelectedTransaction(prev => ({ ...prev, status: status.toLowerCase() }));
       }
-      
-      alert(`✅ Transaction ${status} successfully!${status.toLowerCase() === 'approved' ? ' Balances updated.' : ''}`);
-      
+
+      if (status.toLowerCase() === 'blocked') {
+        setScribeAutoDoneCount(null);
+        setScribeAutoError(null);
+        setScribeAutoPromptTransactionId(transactionId);
+      } else {
+        alert(`✅ Transaction ${status} successfully!${status.toLowerCase() === 'approved' ? ' Balances updated.' : ''}`);
+      }
     } catch (error) {
       console.error('❌ Error updating transaction:', error);
       alert('❌ Error updating transaction: ' + error.message);
+    }
+  };
+
+  const handleScribeAutoGenerate = async () => {
+    if (!scribeAutoPromptTransactionId) return;
+    setScribeAutoGenerating(true);
+    setScribeAutoError(null);
+    try {
+      const results = await generateRequiredReportsForIncident(db, scribeAutoPromptTransactionId);
+      setScribeAutoDoneCount(results.length);
+      setScribeAutoPromptTransactionId(null);
+    } catch (err) {
+      console.error('Scribe auto-generate failed', err);
+      setScribeAutoError(err.message || 'Failed to generate reports.');
+    } finally {
+      setScribeAutoGenerating(false);
+    }
+  };
+
+  const dismissScribeAutoPrompt = () => {
+    setScribeAutoPromptTransactionId(null);
+    setScribeAutoError(null);
+    if (!scribeAutoGenerating) {
+      alert('✅ Transaction blocked successfully!');
     }
   };
 
@@ -954,9 +1101,18 @@ const FraudLensAdminPanel = () => {
         
         {filteredTransactions.length === 0 && !loading && !error ? (
           <div style={emptyStateStyle}>
-            <p>No transactions found matching your search.</p>
-            <p>Total transactions in DB: {transactions.length}</p>
-            <p>Fraud detected: {transactions.filter(t => t.modelDecision).length}</p>
+            {transactions.length === 0 && !isDemo ? (
+              <>
+                <p><strong>Connected to Firebase.</strong> No transactions in the database yet.</p>
+                <p style={{ fontSize: 13, marginTop: 8 }}>Add documents to the <code>transactions</code> collection in Firestore, or check that your Firestore rules allow read access. If you use <code>orderBy('timestamp', 'desc')</code>, ensure the required index exists (see console for link).</p>
+              </>
+            ) : (
+              <>
+                <p>No transactions found matching your search.</p>
+                <p>Total transactions in DB: {transactions.length}</p>
+                <p>Fraud detected: {transactions.filter(t => t.modelDecision).length}</p>
+              </>
+            )}
           </div>
         ) : (
           <div style={transactionListStyle}>
@@ -1052,25 +1208,33 @@ const FraudLensAdminPanel = () => {
           <div style={actionButtonsStyle}>
             <button 
               onClick={() => updateTransactionStatus(transaction.id, 'approved')}
-              style={{...buttonStyle, backgroundColor: '#10b981', opacity: transaction.status === 'approved' ? 0.5 : 1, // optional visual cue
+              style={{...buttonStyle, backgroundColor: '#10b981', opacity: transaction.status === 'approved' ? 0.5 : 1,
                         cursor: transaction.status === 'approved' ? 'not-allowed' : 'pointer'}}
               disabled={transaction.status === 'approved'}
-
-
             >
               <CheckCircle size={16} />
               Approve
             </button>
             <button 
               onClick={() => updateTransactionStatus(transaction.id, 'blocked')}
-              style={{...buttonStyle, backgroundColor: '#ef4444',opacity: transaction.status === 'blocked' ? 0.5 : 1, // optional visual cue
+              style={{...buttonStyle, backgroundColor: '#ef4444', opacity: transaction.status === 'blocked' ? 0.5 : 1,
                 cursor: transaction.status === 'blocked' ? 'not-allowed' : 'pointer'}}
-                disabled={transaction.status === 'blocked'}
-                >
-
+              disabled={transaction.status === 'blocked'}
+            >
               <XCircle size={16} />
               Block
             </button>
+            {(transaction.status === 'blocked' || transaction.modelDecision) && (
+              <button
+                type="button"
+                onClick={() => openNCRPReportFlow(transaction)}
+                style={{ ...buttonStyle, backgroundColor: '#7c3aed' }}
+                title="Report to National Cyber Crime Portal (I4C)"
+              >
+                <FileWarning size={16} />
+                Report to NCRP
+              </button>
+            )}
           </div>
         </div>
 
@@ -1436,6 +1600,11 @@ const FraudLensAdminPanel = () => {
 
   return (
     <div style={appStyle}>
+      {isDemo && (
+        <div style={demoBannerStyle}>
+          You're viewing in <strong>demo mode</strong> — real Firebase data is loaded so you can see and correct all features. Sign out and sign in to use your real account.
+        </div>
+      )}
       {/* Header */}
       <header style={headerStyle}>
         <div style={headerContentStyle}>
@@ -1447,6 +1616,10 @@ const FraudLensAdminPanel = () => {
             </span>
           </div>
           <div style={headerRightStyle}>
+            {isDemo && <span style={{ ...dbStatusStyle, backgroundColor: '#fef3c7', color: '#92400e', marginRight: 8 }}>Demo</span>}
+            <span style={{ fontSize: 13, color: '#6b7280' }}>
+              {profile?.displayName || profile?.email} <span style={{ ...dbStatusStyle, marginLeft: 8 }}>{profile?.role === 'it_admin' ? 'IT Admin' : 'IT'}</span>
+            </span>
             <Link to="/reports" style={scribeNavButtonStyle}>
               Scribe Reports
             </Link>
@@ -1457,8 +1630,8 @@ const FraudLensAdminPanel = () => {
             <button onClick={() => window.location.reload()} style={iconButtonStyle}>
               <RefreshCw size={20} />
             </button>
-            <button style={iconButtonStyle}>
-              <Download size={20} />
+            <button onClick={signOut} style={iconButtonStyle} title="Sign out">
+              <LogOut size={20} />
             </button>
           </div>
         </div>
@@ -1474,6 +1647,7 @@ const FraudLensAdminPanel = () => {
               { id: 'ip-management', label: 'IP Management', icon: Wifi },
               { id: 'analytics', label: 'Analytics', icon: TrendingUp },
               { id: 'users', label: 'Database Info', icon: Database },
+              ...(isIT ? [{ id: 'users-mgmt', label: 'User Management', icon: Users }] : []),
             ].map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
@@ -1505,6 +1679,73 @@ const FraudLensAdminPanel = () => {
         {activeTab === 'ip-management' && <IPManagement />}
         
         {activeTab === 'analytics' && <AnalyticsDashboard />}
+
+        {activeTab === 'users-mgmt' && isIT && (
+          <div style={cardStyle}>
+            <h2 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '24px', color: '#1f2937' }}>
+              <Users size={24} style={{ marginRight: 8, verticalAlign: 'middle' }} />
+              User Management — Pending approvals
+            </h2>
+            <p style={{ color: '#6b7280', marginBottom: 20, fontSize: 14 }}>
+              Approve or reject access requests. Assign role: IT Admin, IT Analyst, or Leadership (Exec).
+            </p>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#f9fafb' }}>
+                    <th style={{ ...thCellStyle, textAlign: 'left' }}>Email</th>
+                    <th style={thCellStyle}>Name</th>
+                    <th style={thCellStyle}>Requested</th>
+                    <th style={thCellStyle}>Requested at</th>
+                    <th style={thCellStyle}>Assign role</th>
+                    <th style={thCellStyle}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pendingUsers.length === 0 ? (
+                    <tr><td colSpan={6} style={{ ...tdCellStyle, textAlign: 'center', color: '#6b7280' }}>No pending requests.</td></tr>
+                  ) : (
+                    pendingUsers.map((u) => (
+                      <tr key={u.id} style={{ borderTop: '1px solid #e5e7eb' }}>
+                        <td style={tdCellStyle}>{u.email}</td>
+                        <td style={tdCellStyle}>{u.displayName || '—'}</td>
+                        <td style={tdCellStyle}>{u.requestedRole || '—'}</td>
+                        <td style={tdCellStyle}>{u.createdAt?.toDate?.()?.toLocaleString?.() || '—'}</td>
+                        <td style={tdCellStyle}>
+                          <select
+                            value={approveRole[u.id] || 'it_analyst'}
+                            onChange={(e) => setApproveRole((prev) => ({ ...prev, [u.id]: e.target.value }))}
+                            style={selectStyle}
+                          >
+                            <option value="it_admin">IT Admin</option>
+                            <option value="it_analyst">IT Analyst</option>
+                            <option value="exec">Leadership (Exec)</option>
+                          </select>
+                        </td>
+                        <td style={tdCellStyle}>
+                          <button
+                            type="button"
+                            onClick={() => handleApproveUser(u.id, approveRole[u.id] || 'it_analyst')}
+                            style={{ ...primaryButtonStyle, marginRight: 8 }}
+                          >
+                            Approve
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRejectUser(u.id)}
+                            style={{ ...buttonStyle, backgroundColor: '#ef4444', color: 'white' }}
+                          >
+                            Reject
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
         
         {activeTab === 'users' && (
           <div style={cardStyle}>
@@ -1658,6 +1899,89 @@ const FraudLensAdminPanel = () => {
           </div>
         )}
       </main>
+
+      {ncrpModalOpen && ncrpReportTransaction && (
+        <div style={ncrpModalBackdropStyle} onClick={() => setNcrpModalOpen(false)}>
+          <div style={ncrpModalContentStyle} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ margin: 0, fontSize: 18, color: '#1f2937', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Shield size={22} color="#7c3aed" />
+                Report to National Cyber Crime Portal (I4C)
+              </h3>
+              <button type="button" onClick={() => setNcrpModalOpen(false)} style={{ ...iconButtonStyle, fontSize: 24, lineHeight: 1 }} aria-label="Close">×</button>
+            </div>
+            <p style={{ fontSize: 13, color: '#6b7280', margin: '0 0 12px 0' }}>
+              The portal has opened in a new tab. Copy the text below and paste it into the complaint description (min 200 characters).
+            </p>
+            <textarea
+              readOnly
+              value={buildNCRPReportText(ncrpReportTransaction)}
+              style={ncrpReportTextareaStyle}
+              rows={12}
+            />
+            <div style={{ display: 'flex', gap: 12, marginTop: 16, flexWrap: 'wrap' }}>
+              <button type="button" onClick={copyNCRPReportToClipboard} style={{ ...primaryButtonStyle, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Copy size={18} />
+                Copy report text
+              </button>
+              <button type="button" onClick={() => window.open(NCRP_PORTAL_URL, '_blank')} style={{ ...buttonStyle, backgroundColor: '#374151', color: 'white', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <ExternalLink size={18} />
+                Open NCRP portal
+              </button>
+              <button type="button" onClick={() => setNcrpModalOpen(false)} style={{ ...buttonStyle, backgroundColor: '#e5e7eb', color: '#374151' }}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {scribeAutoPromptTransactionId && (
+        <div style={ncrpModalBackdropStyle} onClick={dismissScribeAutoPrompt}>
+          <div style={ncrpModalContentStyle} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ margin: 0, fontSize: 18, color: '#1f2937', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <FileWarning size={22} color="#059669" />
+                Generate compliance reports (Scribe)
+              </h3>
+              {!scribeAutoGenerating && (
+                <button type="button" onClick={dismissScribeAutoPrompt} style={{ ...iconButtonStyle, fontSize: 24, lineHeight: 1 }} aria-label="Close">×</button>
+              )}
+            </div>
+            <p style={{ fontSize: 14, color: '#374151', margin: '0 0 12px 0' }}>
+              Transaction blocked. Create the required reports for this incident so they can be sent to the concerned authorities (IT/Compliance, Leadership)?
+            </p>
+            <p style={{ fontSize: 13, color: '#6b7280', margin: '0 0 16px 0' }}>
+              Will generate: <strong>RBI Fraud Report</strong>, <strong>CERT-In Incident Report</strong>, <strong>Executive Summary</strong>. You can then open Scribe to send them to the right recipients.
+            </p>
+            {scribeAutoError && (
+              <p style={{ fontSize: 13, color: '#dc2626', margin: '0 0 12px 0' }}>{scribeAutoError}</p>
+            )}
+            <div style={{ display: 'flex', gap: 12, marginTop: 16, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={handleScribeAutoGenerate}
+                disabled={scribeAutoGenerating}
+                style={{ ...primaryButtonStyle, display: 'flex', alignItems: 'center', gap: 8, opacity: scribeAutoGenerating ? 0.7 : 1 }}
+              >
+                {scribeAutoGenerating ? 'Generating reports…' : 'Generate reports'}
+              </button>
+              <button type="button" onClick={dismissScribeAutoPrompt} disabled={scribeAutoGenerating} style={{ ...buttonStyle, backgroundColor: '#e5e7eb', color: '#374151' }}>
+                Skip
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {scribeAutoDoneCount != null && (
+        <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 9999, background: '#059669', color: 'white', padding: '12px 20px', borderRadius: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <CheckCircle size={20} />
+          <span>{scribeAutoDoneCount} reports generated. Open Scribe to send to authorities.</span>
+          <Link to="/reports" style={{ color: 'white', fontWeight: 600, textDecoration: 'underline' }}>Open Scribe</Link>
+          <button type="button" onClick={() => setScribeAutoDoneCount(null)} style={{ background: 'transparent', border: 'none', color: 'white', cursor: 'pointer', fontSize: 18, lineHeight: 1 }} aria-label="Dismiss">×</button>
+        </div>
+      )}
     </div>
   );
 };
@@ -1665,8 +1989,13 @@ const FraudLensAdminPanel = () => {
 const App = () => (
   <Router>
     <Routes>
-      <Route path="/" element={<FraudLensAdminPanel />} />
-      <Route path="/reports" element={<ScribeDashboard />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/signup" element={<Signup />} />
+      <Route path="/pending" element={<PendingApproval />} />
+      <Route path="/" element={<ProtectedRoute role="it"><FraudLensAdminPanel /></ProtectedRoute>} />
+      <Route path="/reports" element={<ProtectedRoute role="it"><ScribeDashboard /></ProtectedRoute>} />
+      <Route path="/exec" element={<ProtectedRoute role="exec"><ExecDashboard /></ProtectedRoute>} />
+      <Route path="/exec/reports" element={<ProtectedRoute role="exec"><ScribeDashboard /></ProtectedRoute>} />
     </Routes>
   </Router>
 );
@@ -2439,6 +2768,53 @@ const primaryButtonStyle = {
   border: 'none',
   borderRadius: '6px',
   cursor: 'pointer'
+};
+
+const thCellStyle = { padding: '12px 16px', fontWeight: 600, color: '#374151' };
+const tdCellStyle = { padding: '12px 16px' };
+
+const demoBannerStyle = {
+  backgroundColor: '#fef3c7',
+  borderBottom: '1px solid #f59e0b',
+  padding: '10px 24px',
+  textAlign: 'center',
+  fontSize: 14,
+  color: '#92400e'
+};
+
+const ncrpModalBackdropStyle = {
+  position: 'fixed',
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  backgroundColor: 'rgba(0,0,0,0.5)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  zIndex: 1000,
+  padding: 24
+};
+const ncrpModalContentStyle = {
+  backgroundColor: 'white',
+  borderRadius: 12,
+  padding: 24,
+  maxWidth: 560,
+  width: '100%',
+  maxHeight: '90vh',
+  overflowY: 'auto',
+  boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)'
+};
+const ncrpReportTextareaStyle = {
+  width: '100%',
+  minHeight: 200,
+  padding: 12,
+  border: '1px solid #e5e7eb',
+  borderRadius: 8,
+  fontSize: 13,
+  fontFamily: 'monospace',
+  resize: 'vertical',
+  boxSizing: 'border-box'
 };
 
 export default App;

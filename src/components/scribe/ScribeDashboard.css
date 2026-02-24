@@ -227,7 +227,7 @@
   border-radius: 12px;
   padding: 18px;
   min-height: 180px;
-  max-height: 320px;
+  max-height: 520px;
   overflow-y: auto;
   border: 1px solid #e5e7eb;
 }
@@ -237,6 +237,78 @@
   font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
   margin: 0;
   color: #1f2937;
+}
+
+/* Structured report document (CERT-In, GDPR, SOC, etc.) */
+.scribe-doc {
+  font-family: Georgia, "Times New Roman", serif;
+  color: #111;
+  max-width: 800px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+.scribe-doc-header {
+  border-bottom: 2px solid #1e293b;
+  padding-bottom: 12px;
+  margin-bottom: 24px;
+}
+.scribe-doc-logo {
+  max-height: 48px;
+  margin-bottom: 8px;
+}
+.scribe-doc-title {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0;
+}
+.scribe-doc-meta {
+  font-size: 13px;
+  color: #64748b;
+  margin-top: 8px;
+}
+.scribe-doc-section {
+  margin-bottom: 24px;
+}
+.scribe-doc-section h2 {
+  font-size: 16px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #1e293b;
+  margin: 0 0 8px 0;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 4px;
+}
+.scribe-doc-section p,
+.scribe-doc-section ul {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+}
+.scribe-doc-section ul {
+  padding-left: 20px;
+}
+.scribe-doc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  margin: 12px 0;
+}
+.scribe-doc-table th,
+.scribe-doc-table td {
+  text-align: left;
+  padding: 8px 12px;
+  border: 1px solid #e2e8f0;
+}
+.scribe-doc-table th {
+  background: #f8fafc;
+  font-weight: 600;
+}
+.scribe-doc-footer {
+  margin-top: 32px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+  font-size: 12px;
+  color: #64748b;
 }
 
 .scribe-placeholder {

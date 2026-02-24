@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import { parseReportContent, ReportDocument } from '../ReportDocument';
 
-const reportOptions = [
-  'Internal SOC Post-Mortem',
-  'Executive Summary',
+const FULL_REPORT_OPTIONS = [
+  'RBI Fraud Report (FMR-style)',
   'CERT-In Incident Report (India)',
+  'Executive Summary',
+  'Internal SOC Post-Mortem',
   'GDPR Data Breach Notification (Draft)',
   'ISO 27001 Incident Evidence'
 ];
@@ -17,8 +19,10 @@ const ReportGenerator = ({
   reportMeta,
   defaultRecipients,
   defaultSubjects,
-  errorMessage
+  errorMessage,
+  reportOptions: reportOptionsProp
 }) => {
+  const reportOptions = reportOptionsProp && reportOptionsProp.length > 0 ? reportOptionsProp : FULL_REPORT_OPTIONS;
   const [incidentId, setIncidentId] = useState('');
   const [reportType, setReportType] = useState(reportOptions[0]);
 
@@ -29,6 +33,10 @@ const ReportGenerator = ({
   };
 
   const hasReport = Boolean(generatedReport);
+  const parsed = useMemo(
+    () => hasReport && reportMeta ? parseReportContent(reportMeta.reportType, generatedReport) : null,
+    [hasReport, reportMeta, generatedReport]
+  );
 
   return (
     <div>
@@ -108,10 +116,18 @@ const ReportGenerator = ({
         </div>
         <div className="scribe-preview-body">
           {hasReport ? (
-            <pre>{generatedReport}</pre>
+            parsed ? (
+              <ReportDocument
+                reportType={reportMeta?.reportType}
+                parsed={parsed}
+                incidentId={reportMeta?.incidentId}
+              />
+            ) : (
+              <pre>{generatedReport}</pre>
+            )
           ) : (
             <p className="scribe-placeholder">
-              Generated content will appear here in Markdown, JSON, or plaintext based on the template.
+              Generated content will appear here in the correct format for the selected report type.
             </p>
           )}
         </div>
