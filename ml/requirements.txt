@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+pydantic
+python-multipart
+pandas
+scikit-learn
+numpy
+joblib
+google-cloud-storage

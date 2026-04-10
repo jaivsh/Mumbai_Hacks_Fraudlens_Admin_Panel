@@ -1,0 +1,173 @@
+openapi: 3.0.3
+info:
+  title: FraudLens Scribe API
+  description: |
+    Compliance report generation (RBI, CERT-In, executive summary, etc.) using **Vertex AI (Gemini)** on GCP.
+    Stateless-friendly: pass `incidentData` in the body, or `incidentId` when the service uses **Firebase Admin**
+    to read `transactions/{incidentId}`.
+
+    **Auth:** `Authorization: Bearer <Firebase ID token>` unless `REQUIRE_AUTH=false` (dev only).
+
+    **Cloud Run:** Set `VERTEX_PROJECT_ID`, `VERTEX_LOCATION`, `FIREBASE_PROJECT_ID`. Use the runtime service account
+    with **Vertex AI User** and, if using Firestore, **Cloud Datastore User**.
+  version: 1.0.0
+
+servers:
+  - url: https://fraudlens-scribe-api-875422601666.asia-south1.run.app
+    description: Production Cloud Run (fraudlens-aura-prod, asia-south1)
+
+tags:
+  - name: Health
+  - name: Reports
+
+paths:
+  /api/scribe/health:
+    get:
+      tags: [Health]
+      summary: Health and non-secret config surface
+      operationId: scribeHealth
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  /api/scribe/report-types:
+    get:
+      tags: [Reports]
+      summary: List supported report type keys
+      operationId: scribeReportTypes
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+        '401':
+          description: Unauthorized
+
+  /api/scribe/generate:
+    post:
+      tags: [Reports]
+      summary: Generate one compliance report
+      operationId: scribeGenerate
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateRequest'
+      responses:
+        '200':
+          description: Generated report body and metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerateResponse'
+        '400':
+          description: Bad request
+        '401':
+          description: Unauthorized
+        '404':
+          description: Incident not found (Firestore mode)
+        '500':
+          description: Server error
+
+  /api/scribe/generate/batch:
+    post:
+      tags: [Reports]
+      summary: Generate multiple reports (default auto-set for incidents)
+      operationId: scribeGenerateBatch
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchRequest'
+      responses:
+        '200':
+          description: Per-report results and errors
+        '401':
+          description: Unauthorized
+        '500':
+          description: Server error
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    GenerateRequest:
+      type: object
+      required: [reportType]
+      properties:
+        reportType:
+          type: string
+          example: RBI Fraud Report (FMR-style)
+        incidentId:
+          type: string
+          description: Firestore document id under `transactions` (requires Firebase Admin on server)
+        incidentData:
+          type: object
+          description: Full incident JSON (use for APIX / partner calls without Firestore)
+        persist:
+          type: boolean
+          description: Write to `scribe_reports` when Firestore is enabled (default true)
+        uploadToChronos:
+          type: boolean
+          description: POST to Chronos `/api/docs/upload` when CHRONOS_API_BASE is set (default true)
+        ingestToAssistant:
+          type: boolean
+          description: Forward to Assistant ingest when ASSISTANT_API_BASE is set and GCS upload succeeded (default true)
+
+    GenerateResponse:
+      type: object
+      properties:
+        reportId:
+          type: string
+          nullable: true
+        reportType:
+          type: string
+        subject:
+          type: string
+        recipients:
+          type: array
+          items:
+            type: string
+        incidentId:
+          type: string
+        content:
+          type: string
+        gcs:
+          type: object
+          nullable: true
+        generatedBy:
+          type: object
+
+    BatchRequest:
+      type: object
+      properties:
+        reportTypes:
+          type: array
+          items:
+            type: string
+          description: Defaults to RBI + CERT-In + Executive Summary
+        incidentId:
+          type: string
+        incidentData:
+          type: object
+        persist:
+          type: boolean
+        uploadToChronos:
+          type: boolean
+        ingestToAssistant:
+          type: boolean

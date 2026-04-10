@@ -20,6 +20,16 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [demoProfile, setDemoProfile] = useState(null);
+  const demoItEmail = (process.env.REACT_APP_DEMO_IT_EMAIL || '').trim().toLowerCase();
+  const demoExecEmail = (process.env.REACT_APP_DEMO_EXEC_EMAIL || '').trim().toLowerCase();
+
+  const inferDemoProfileFromEmail = (email) => {
+    const e = String(email || '').trim().toLowerCase();
+    if (!e) return null;
+    if (demoExecEmail && e === demoExecEmail) return { role: 'exec', approved: true, email: e, demo: true };
+    if (demoItEmail && e === demoItEmail) return { role: 'it_admin', approved: true, email: e, demo: true };
+    return null;
+  };
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
@@ -33,13 +43,23 @@ export function AuthProvider({ children }) {
       try {
         const snap = await getDoc(doc(db, ADMIN_USERS_COLLECTION, user.uid));
         if (snap.exists()) {
-          setProfile({ id: snap.id, ...snap.data() });
+          const base = { id: snap.id, ...snap.data() };
+          // If signing in via configured demo accounts, prefer the intended role
+          // even if Firestore is missing/misconfigured for the demo UID.
+          const inferred = inferDemoProfileFromEmail(user.email);
+          if (inferred) {
+            setProfile({ ...base, role: inferred.role, approved: true });
+          } else {
+            setProfile(base);
+          }
         } else {
-          setProfile(null);
+          const inferred = inferDemoProfileFromEmail(user.email);
+          setProfile(inferred || null);
         }
       } catch (err) {
         console.error('Auth profile fetch error', err);
-        setProfile(null);
+        const inferred = inferDemoProfileFromEmail(user.email);
+        setProfile(inferred || null);
       }
       setAuthLoading(false);
     });

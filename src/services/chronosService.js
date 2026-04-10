@@ -92,36 +92,66 @@ export async function getIncidentHistory(incidentId) {
   }
 }
 
+const normHex = (s) => String(s || '').trim().toLowerCase();
+
 /**
+ * Verify an artifact: prefers GCS re-hash via /api/docs/meta when objectPath is known
+ * (Cloud Run Chronos implements meta; it does not implement verify-doc).
+ * Falls back to in-memory ledger match via /api/chronos/verify-doc when objectPath is missing.
+ *
  * @param {string} incidentId
  * @param {string} sha256
+ * @param {string} [objectPath] - e.g. reports/{incident}/file.pdf
  * @returns {Promise<{ ok: boolean, data?: any, error?: string }>}
  */
-export async function verifyDocument(incidentId, sha256) {
+export async function verifyDocument(incidentId, sha256, objectPath) {
   const base = getBaseUrl();
   if (!base) {
     return { ok: false, error: 'Chronos API URL not configured' };
   }
 
-  try {
-    const params = new URLSearchParams({ incidentId, sha256 });
-    const baseUrl = base.replace(/\/$/, '');
-    const tryUrls = [
-      `${baseUrl}/api/chronos/verify-doc?${params.toString()}`,
-      `${baseUrl}/api/docs/verify-doc?${params.toString()}`
-    ];
+  const baseUrl = base.replace(/\/$/, '');
+  const exp = normHex(sha256);
+  if (!exp) {
+    return { ok: false, error: 'No SHA-256 recorded for this artifact.' };
+  }
 
-    let lastErr = null;
-    for (const url of tryUrls) {
+  try {
+    const pathTrim = String(objectPath || '').trim();
+    if (pathTrim) {
+      const url = `${baseUrl}/api/docs/meta?objectPath=${encodeURIComponent(pathTrim)}`;
       const res = await fetch(url);
       const data = await res.json().catch(() => ({}));
-      if (res.ok) return { ok: true, data };
-      lastErr = data?.message || data?.error || `HTTP ${res.status}`;
-      // If it's a 404, try the next legacy URL.
-      if (res.status !== 404) break;
+      if (!res.ok) {
+        return {
+          ok: false,
+          error: data?.error || data?.details || `HTTP ${res.status}`,
+          data: null
+        };
+      }
+      const got = normHex(data.sha256);
+      if (got && got === exp) {
+        return { ok: true, data: { ...data, verified: true, source: 'gcs' } };
+      }
+      return {
+        ok: false,
+        error: 'SHA256 mismatch — stored file does not match the hash on record.',
+        data
+      };
     }
 
-    return { ok: false, error: lastErr || 'Verification failed', data: null };
+    const params = new URLSearchParams({ incidentId, sha256 });
+    const ledgerUrl = `${baseUrl}/api/chronos/verify-doc?${params.toString()}`;
+    const res = await fetch(ledgerUrl);
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && (data?.verified || data?.ok)) {
+      return { ok: true, data };
+    }
+    return {
+      ok: false,
+      error: data?.error || data?.message || `HTTP ${res.status}`,
+      data: null
+    };
   } catch (err) {
     return {
       ok: false,

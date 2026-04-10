@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FraudLens — Service Level Agreement (SLA)</title>
+    <meta name="description" content="FraudLens SLA (template) for pilots and production." />
+    <meta name="theme-color" content="#0b1220" />
+    <link rel="icon" href="./assets/favicon.png" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="siteHeader">
+      <div class="container headerInner">
+        <a class="brand" href="./index.html" aria-label="FraudLens Home">
+          <span class="brandMark">FL</span>
+          <span class="brandText">FraudLens</span>
+        </a>
+        <nav class="nav">
+          <a href="./index.html#product">Product</a>
+          <a href="./index.html#compliance">Compliance</a>
+          <a href="./index.html#security">Security</a>
+          <a href="./faq.html">FAQ</a>
+          <a href="./terms.html">Legal</a>
+          <a class="navCta" href="./contact.html">Contact Sales</a>
+        </nav>
+        <button class="mobileMenuBtn" id="menuBtn" type="button" aria-label="Open menu">Menu</button>
+      </div>
+      <div class="mobileNav" id="mobileNav" aria-hidden="true">
+        <a href="./index.html#product">Product</a>
+        <a href="./index.html#compliance">Compliance</a>
+        <a href="./index.html#security">Security</a>
+        <a href="./faq.html">FAQ</a>
+        <a href="./terms.html">Legal</a>
+        <a href="./contact.html">Contact Sales</a>
+      </div>
+    </header>
+
+    <main>
+      <section class="pageHero">
+        <div class="container">
+          <p class="chip">Legal</p>
+          <h1>Service Level Agreement (SLA)</h1>
+          <p class="subhead">
+            Template SLA terms. For production SLAs (uptime, response times, escalation), we tailor this to your deployment model.
+          </p>
+          <div class="heroActions">
+            <a class="btn secondary" href="./terms.html">Terms</a>
+            <a class="btn secondary" href="./contact.html">Request a tailored SLA</a>
+            <a class="btn secondary" href="./index.html">Back to home</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="container legalLayout">
+          <aside class="legalNav">
+            <div class="panel">
+              <h3>Legal pages</h3>
+              <div class="legalLinks">
+                <a href="./terms.html">Terms</a>
+                <a href="./privacy.html">Privacy</a>
+                <a class="active" href="./sla.html">SLA</a>
+                <a href="./nda.html">NDA</a>
+                <a href="./dpa.html">DPA</a>
+                <a href="./aup.html">AUP</a>
+              </div>
+            </div>
+          </aside>
+
+          <article class="panel legalDoc">
+            <p class="muted">Last updated: <span data-date="today">—</span></p>
+
+            <h2>1) Availability target</h2>
+            <p>Target availability is defined per customer contract and deployment architecture.</p>
+
+            <h2>2) Support hours</h2>
+            <p>Support hours and coverage are defined per plan (pilot vs production).</p>
+
+            <h2>3) Incident severity</h2>
+            <ul>
+              <li><strong>Sev 1</strong>: Service unavailable / critical security issue</li>
+              <li><strong>Sev 2</strong>: Major degradation / key workflow blocked</li>
+              <li><strong>Sev 3</strong>: Minor issue / workaround available</li>
+            </ul>
+
+            <h2>4) Response & resolution targets</h2>
+            <p>
+              Response and resolution targets depend on severity and customer plan. For pilots, targets are best-effort unless otherwise
+              agreed.
+            </p>
+
+            <h2>5) Contact</h2>
+            <p>
+              Support/Sales: <a class="inlineLink" href="mailto:fancybeardarmies@gmail.com?subject=FraudLens%20Support%20and%20SLA">fancybeardarmies@gmail.com</a>
+            </p>
+
+            <hr class="legalHr" />
+            <p class="fine">
+              This is a template. A binding SLA should be defined in a signed agreement including service credits, exclusions, maintenance windows, and reporting.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <footer class="footer">
+        <div class="container footerInner">
+          <div class="muted">© <span id="year"></span> FraudLens</div>
+          <div class="footerLinks">
+            <a href="./faq.html">FAQ</a>
+            <a href="./terms.html">Terms</a>
+            <a href="./privacy.html">Privacy</a>
+            <a href="./sla.html">SLA</a>
+            <a href="./nda.html">NDA</a>
+            <a href="./dpa.html">DPA</a>
+            <a href="./aup.html">AUP</a>
+            <a href="./contact.html">Contact</a>
+          </div>
+        </div>
+      </footer>
+    </main>
+
+    <script src="./main.js"></script>
+  </body>
+</html>
+

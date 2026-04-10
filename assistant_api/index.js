@@ -1,7 +1,9 @@
 require('dotenv').config();
 
+const http = require('http');
 const express = require('express');
 const cors = require('cors');
+const WebSocket = require('ws');
 const { BigQuery } = require('@google-cloud/bigquery');
 const { VertexAI } = require('@google-cloud/vertexai');
 const crypto = require('crypto');
@@ -23,8 +25,39 @@ const REQUIRE_AUTH = (process.env.REQUIRE_AUTH || 'true').trim().toLowerCase() !
 
 const VERTEX_PROJECT_ID = (process.env.VERTEX_PROJECT_ID || process.env.GCP_PROJECT_ID || '').trim();
 const VERTEX_LOCATION = (process.env.VERTEX_LOCATION || 'asia-south1').trim();
-const VERTEX_GEMINI_MODEL = (process.env.VERTEX_GEMINI_MODEL || 'gemini-2.0-flash-001').trim();
+/**
+ * Prefer current GA Gemini 2.5 IDs (see Model Garden). Older numbered IDs (gemini-1.5-*-002,
+ * gemini-2.0-flash-001) are often retired or unavailable for new billing/API setups.
+ */
+const VERTEX_GEMINI_MODEL = (process.env.VERTEX_GEMINI_MODEL || 'gemini-2.5-flash').trim();
+const VERTEX_GEMINI_MODELS = String(process.env.VERTEX_GEMINI_MODELS || '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+const VERTEX_GEMINI_FALLBACKS = [
+  'gemini-2.5-flash',
+  'gemini-2.5-flash-lite',
+  'gemini-2.5-pro',
+  'gemini-2.5-flash-preview-09-2025',
+  'gemini-2.0-flash-001',
+  'gemini-2.0-flash-lite-001'
+];
 const VERTEX_EMBED_MODEL = (process.env.VERTEX_EMBED_MODEL || 'text-embedding-004').trim();
+
+/** Gemini Live (bidirectional) WebSocket region — often must be us-central1 even if embeddings use another region */
+const VERTEX_LIVE_LOCATION = (process.env.VERTEX_LIVE_LOCATION || 'us-central1').trim();
+/**
+ * GA Live model (text + multimodal). Older `gemini-2.0-flash-live-preview-*` often returns close 1008 when retired.
+ * Docs: gemini-live-2.5-flash-native-audio (inputs include text).
+ */
+let VERTEX_LIVE_MODEL = (process.env.VERTEX_LIVE_MODEL || 'gemini-live-2.5-flash-native-audio').trim();
+if (!VERTEX_LIVE_MODEL || VERTEX_LIVE_MODEL.endsWith('-')) {
+  console.warn(
+    '[Live] VERTEX_LIVE_MODEL missing or looks truncated (trailing hyphen); using gemini-live-2.5-flash-native-audio'
+  );
+  VERTEX_LIVE_MODEL = 'gemini-live-2.5-flash-native-audio';
+}
 
 const CHRONOS_API_BASE = (process.env.CHRONOS_API_BASE || '').trim().replace(/\/$/, '');
 
@@ -41,12 +74,24 @@ const gAuth = new GoogleAuth({
   scopes: ['https://www.googleapis.com/auth/cloud-platform']
 });
 
+/** Firebase ID tokens are RS256; must use JWK metadata (not x509 PEM) or jose throws "JSON Web Key Set malformed". */
 const JWKS = createRemoteJWKSet(
-  new URL('https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com')
+  new URL('https://www.googleapis.com/robot/v1/metadata/jwk/securetoken@system.gserviceaccount.com')
 );
 
 function sha256Hex(s) {
   return crypto.createHash('sha256').update(String(s || ''), 'utf8').digest('hex');
+}
+
+async function verifyFirebaseIdTokenString(token) {
+  if (!FIREBASE_PROJECT_ID) {
+    throw new Error('Server misconfigured: FIREBASE_PROJECT_ID is required to verify tokens.');
+  }
+  const { payload } = await jwtVerify(token, JWKS, {
+    issuer: `https://securetoken.google.com/${FIREBASE_PROJECT_ID}`,
+    audience: FIREBASE_PROJECT_ID
+  });
+  return { uid: payload.user_id || payload.sub || null, token, payload };
 }
 
 async function verifyFirebaseIdToken(req) {
@@ -58,19 +103,259 @@ async function verifyFirebaseIdToken(req) {
     if (REQUIRE_AUTH) throw new Error('Missing Authorization bearer token.');
     return { uid: null, token: null };
   }
-  if (!FIREBASE_PROJECT_ID) {
-    throw new Error('Server misconfigured: FIREBASE_PROJECT_ID is required to verify tokens.');
-  }
 
   try {
-    const { payload } = await jwtVerify(token, JWKS, {
-      issuer: `https://securetoken.google.com/${FIREBASE_PROJECT_ID}`,
-      audience: FIREBASE_PROJECT_ID
-    });
-    return { uid: payload.user_id || payload.sub || null, token, payload };
+    return await verifyFirebaseIdTokenString(token);
   } catch (e) {
     if (e instanceof JoseErrors.JWTExpired) throw new Error('Token expired.');
     throw new Error('Invalid token.');
+  }
+}
+
+function vertexLiveServiceUrl() {
+  const host = `${VERTEX_LIVE_LOCATION}-aiplatform.googleapis.com`;
+  return `wss://${host}/ws/google.cloud.aiplatform.v1beta1.LlmBidiService/BidiGenerateContent`;
+}
+
+async function getGcpAccessToken() {
+  const client = await gAuth.getClient();
+  const tok = await client.getAccessToken();
+  const accessToken = typeof tok === 'string' ? tok : tok?.token;
+  if (!accessToken) throw new Error('Failed to acquire GCP access token for Live API.');
+  return accessToken;
+}
+
+/**
+ * WebSocket proxy: browser <-> this server <-> Vertex Gemini Live (Bidi).
+ * Client flow: send {"flAuth":"<firebase_jwt>"} (if REQUIRE_AUTH), receive {"flReady":true,"config":{...}}, then send Vertex Live JSON frames.
+ */
+function attachLiveWebSocketProxy(server) {
+  /** perMessageDeflate off: fewer edge-case drops through proxies / Cloud Run. */
+  const wss = new WebSocket.Server({ noServer: true, perMessageDeflate: false });
+
+  server.on('upgrade', (request, socket, head) => {
+    try {
+      const host = request.headers.host || 'localhost';
+      const u = new URL(request.url || '/', `http://${host}`);
+      if (u.pathname !== '/api/assistant/live') {
+        socket.destroy();
+        return;
+      }
+      wss.handleUpgrade(request, socket, head, (clientWs) => {
+        handleLiveClient(clientWs);
+      });
+    } catch (err) {
+      console.error('Live WS upgrade error', err);
+      socket.destroy();
+    }
+  });
+}
+
+function handleLiveClient(clientWs) {
+  let upstream = null;
+  let authed = !REQUIRE_AUTH;
+  let upstreamOpening = false;
+  const pendingToVertex = [];
+
+  /** Cloud Run throttles CPU when “idle”; ping keeps the connection warm and satisfies L7 idle timeouts. */
+  const pingMs = Math.max(5000, Number(process.env.LIVE_WS_PING_MS || 20000));
+  const pingTimer = setInterval(() => {
+    if (clientWs.readyState === WebSocket.OPEN) {
+      try {
+        clientWs.ping();
+      } catch (_) {
+        // ignore
+      }
+    }
+  }, pingMs);
+
+  const safeCloseClient = (code, reason) => {
+    try {
+      if (upstream && upstream.readyState === WebSocket.OPEN) upstream.close();
+    } catch (_) {
+      // ignore
+    }
+    try {
+      clearInterval(pingTimer);
+    } catch (_) {
+      // ignore
+    }
+    try {
+      clientWs.close(code, reason);
+    } catch (_) {
+      // ignore
+    }
+  };
+
+  const flushPendingToVertex = () => {
+    if (!upstream || upstream.readyState !== WebSocket.OPEN) return;
+    while (pendingToVertex.length) {
+      const t = pendingToVertex.shift();
+      try {
+        upstream.send(t);
+      } catch (e) {
+        console.error('Live upstream send failed', e);
+        break;
+      }
+    }
+  };
+
+  const attachUpstream = () => {
+    if (upstream || upstreamOpening) return;
+    if (!VERTEX_PROJECT_ID) {
+      clientWs.send(JSON.stringify({ flError: 'VERTEX_PROJECT_ID not configured for Live API.' }));
+      safeCloseClient(1011, 'config');
+      return;
+    }
+    upstreamOpening = true;
+    getGcpAccessToken()
+      .then((accessToken) => {
+        const serviceUrl = vertexLiveServiceUrl();
+        const up = new WebSocket(serviceUrl, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`
+          },
+          perMessageDeflate: false
+        });
+        upstream = up;
+        upstreamOpening = false;
+
+        up.on('open', () => {
+          if (clientWs.readyState === WebSocket.OPEN) {
+            clientWs.send(
+              JSON.stringify({
+                flReady: true,
+                config: {
+                  projectId: VERTEX_PROJECT_ID,
+                  location: VERTEX_LIVE_LOCATION,
+                  model: VERTEX_LIVE_MODEL
+                }
+              })
+            );
+          }
+          flushPendingToVertex();
+        });
+
+        up.on('message', (data, isBinary) => {
+          if (clientWs.readyState !== WebSocket.OPEN) return;
+          if (isBinary) {
+            clientWs.send(data);
+          } else {
+            clientWs.send(data.toString());
+          }
+        });
+
+        up.on('error', (err) => {
+          console.error('Live upstream error', err);
+          if (clientWs.readyState === WebSocket.OPEN) {
+            clientWs.send(JSON.stringify({ flError: err.message || 'Upstream WebSocket error' }));
+          }
+        });
+
+        up.on('close', (code, buf) => {
+          const reasonStr = Buffer.isBuffer(buf) ? buf.toString('utf8') : String(buf || '');
+          if (clientWs.readyState === WebSocket.OPEN) {
+            if (code && code !== 1000) {
+              try {
+                clientWs.send(
+                  JSON.stringify({
+                    flError: `Vertex Live closed (${code})${reasonStr ? `: ${reasonStr.slice(0, 500)}` : ''}`
+                  })
+                );
+              } catch (_) {
+                // ignore
+              }
+            }
+            try {
+              clearInterval(pingTimer);
+            } catch (_) {
+              // ignore
+            }
+            try {
+              const ok =
+                typeof code === 'number' && code >= 1000 && code < 5000 && code !== 1005 && code !== 1006;
+              const outCode = ok ? code : 1011;
+              const r = reasonStr.replace(/\0/g, '').slice(0, 123);
+              clientWs.close(outCode, r || undefined);
+            } catch (_) {
+              try {
+                clientWs.terminate();
+              } catch (_) {
+                // ignore
+              }
+            }
+          }
+        });
+      })
+      .catch((err) => {
+        upstreamOpening = false;
+        console.error('Live token/upstream failed', err);
+        if (clientWs.readyState === WebSocket.OPEN) {
+          clientWs.send(JSON.stringify({ flError: err.message || 'Failed to connect to Vertex Live' }));
+        }
+        safeCloseClient(1011, 'upstream');
+      });
+  };
+
+  clientWs.on('message', async (buf) => {
+    const text = buf.toString();
+    if (!authed) {
+      let msg;
+      try {
+        msg = JSON.parse(text);
+      } catch {
+        safeCloseClient(1008, 'invalid json');
+        return;
+      }
+      const jwt = typeof msg.flAuth === 'string' ? msg.flAuth.trim() : '';
+      if (!jwt) {
+        safeCloseClient(1008, 'flAuth required');
+        return;
+      }
+      try {
+        await verifyFirebaseIdTokenString(jwt);
+        authed = true;
+      } catch (e) {
+        if (clientWs.readyState === WebSocket.OPEN) {
+          clientWs.send(JSON.stringify({ flError: e.message || 'Auth failed' }));
+        }
+        safeCloseClient(1008, 'auth');
+        return;
+      }
+      attachUpstream();
+      return;
+    }
+
+    if (!upstream || upstream.readyState !== WebSocket.OPEN) {
+      pendingToVertex.push(text);
+      if (!upstream && !upstreamOpening) attachUpstream();
+      else if (upstream && upstream.readyState === WebSocket.CONNECTING) {
+        /* wait for open; flushPendingToVertex runs in upstream "open" */
+      } else if (!upstreamOpening) attachUpstream();
+      return;
+    }
+    upstream.send(text);
+  });
+
+  clientWs.on('close', () => {
+    try {
+      clearInterval(pingTimer);
+    } catch (_) {
+      // ignore
+    }
+    try {
+      if (upstream && upstream.readyState === WebSocket.OPEN) upstream.close();
+    } catch (_) {
+      // ignore
+    }
+  });
+
+  clientWs.on('error', (err) => {
+    console.error('Live client error', err);
+  });
+
+  if (authed) {
+    attachUpstream();
   }
 }
 
@@ -104,19 +389,70 @@ async function embedText(text) {
   return values;
 }
 
-async function generateAnswer({ question, facts, passages }) {
+/** Client sends { role: 'user'|'assistant', content }; Vertex uses role 'model' for assistant. */
+function sanitizeChatHistory(raw) {
+  const items = [];
+  for (const h of (Array.isArray(raw) ? raw : []).slice(-20)) {
+    if (!h || typeof h !== 'object') continue;
+    const roleIn = String(h.role || '').toLowerCase();
+    const role =
+      roleIn === 'assistant' || roleIn === 'model' ? 'model' : roleIn === 'user' ? 'user' : null;
+    let content = String(h.content || '').trim();
+    if (!role || !content) continue;
+    if (content.length > 8000) content = content.slice(0, 8000);
+    items.push({ role, parts: [{ text: content }] });
+  }
+  while (items.length && items[0].role !== 'user') items.shift();
+  const merged = [];
+  for (const it of items) {
+    if (merged.length && merged[merged.length - 1].role === it.role) {
+      merged[merged.length - 1].parts[0].text += `\n\n${it.parts[0].text}`;
+    } else {
+      merged.push({ role: it.role, parts: [{ text: it.parts[0].text }] });
+    }
+  }
+  return merged;
+}
+
+async function generateAnswer({ question, facts, passages, history, audience }) {
   if (!vertex) throw new Error('Vertex AI not configured (VERTEX_PROJECT_ID missing).');
-  const model = vertex.getGenerativeModel({ model: VERTEX_GEMINI_MODEL });
+  const modelCandidates = [
+    ...new Set([...VERTEX_GEMINI_MODELS, VERTEX_GEMINI_MODEL, ...VERTEX_GEMINI_FALLBACKS])
+  ].filter(Boolean);
+
+  const aud = audience === 'exec' ? 'exec' : 'analyst';
+  const audienceRules =
+    aud === 'exec'
+      ? [
+          'Audience: executive reader. Open with 1–2 plain sentences (the “so what”).',
+          'Add at most 3 short bullets only if needed. Avoid internal field names and raw JSON paths.',
+          'Prefer everyday language; define acronyms once if you use them.'
+        ]
+      : [
+          'Audience: fraud analyst. Use clear short bullets with labels when listing drivers or checks.',
+          'Stay conversational; avoid sounding like a database dump or error template.'
+        ];
+
+  const toneRules = [
+    'Write naturally, like chat. If the question is very short or vague but an incidentId is present in context, interpret charitably for that incident and state your assumption in one short phrase.',
+    'If you cannot answer, give one helpful clarifying question instead of only saying the question is incomplete.',
+    'For probabilities/scores between 0 and 1 in facts, also give a percentage with at most one decimal (e.g. 99.5%).',
+    'Round noisy floats to sensible precision; do not paste 10+ decimal places.',
+    'Prefer “blocked / allowed / high risk” phrasing over “model decision was true”.'
+  ];
 
   const system = [
     'You are FraudLens Assistant for an RBI-regulated entity.',
     'You answer questions from IT teams and executives about fraud incidents.',
+    ...audienceRules,
+    ...toneRules,
     'Rules:',
-    '- Use ONLY the provided facts and retrieved passages. If missing, say what is missing.',
-    '- Be precise. Prefer exact numeric values from facts.',
+    '- Ground answers ONLY in the provided facts and retrieved passages. If something is missing, say so briefly.',
     '- Output MUST be a single valid JSON object with keys: answer (string), citations (array).',
-    '- citations entries must include: incidentId, reportType, objectPath, sha256, fileUrl (if available).',
-    '- Do not include markdown.'
+    '- citations entries: incidentId, reportType, objectPath, sha256, fileUrl (null when unknown).',
+    '- Cite real report objectPath/sha256 from passages when possible; do not invent paths like contextFacts.incident.*.',
+    '- The answer string may use line breaks; do not use markdown code fences.',
+    '- Output no text outside that one JSON object.'
   ].join('\n');
 
   const context = {
@@ -124,30 +460,56 @@ async function generateAnswer({ question, facts, passages }) {
     passages: Array.isArray(passages) ? passages : []
   };
 
-  const prompt = [
+  const finalUserText = [
     system,
     '',
     'Context JSON:',
     JSON.stringify(context, null, 2),
     '',
     'Question:',
-    question
+    String(question || '').trim()
   ].join('\n');
 
-  const resp = await model.generateContent({
-    contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    generationConfig: {
-      temperature: 0.2,
-      maxOutputTokens: 1024
+  const hist = sanitizeChatHistory(history);
+  const contents = [...hist, { role: 'user', parts: [{ text: finalUserText }] }];
+
+  const temperature = aud === 'exec' ? 0.48 : 0.42;
+  const maxOutputTokens = 2048;
+
+  let resp;
+  let lastErr = null;
+  for (const m of modelCandidates) {
+    try {
+      const model = vertex.getGenerativeModel({ model: m });
+      resp = await model.generateContent({
+        contents,
+        generationConfig: {
+          temperature,
+          maxOutputTokens
+        }
+      });
+      break;
+    } catch (e) {
+      lastErr = e;
+      const msg = String(e?.message || e);
+      const notFound =
+        /NOT_FOUND/i.test(msg) ||
+        /was not found/i.test(msg) ||
+        (/404/i.test(msg) && /models\//i.test(msg));
+      if (notFound) continue;
+      throw e;
     }
-  });
+  }
+  if (!resp) {
+    throw lastErr || new Error('All Vertex model candidates failed.');
+  }
 
   const text =
     resp?.response?.candidates?.[0]?.content?.parts?.map((p) => p.text || '').join('') || '';
   const trimmed = String(text || '').trim();
   if (!trimmed) throw new Error('Model returned empty output.');
 
-  // Strict JSON parse with fallback extraction
+  // Strict JSON parse with fallback extraction; if still invalid, degrade gracefully to plain text.
   try {
     return JSON.parse(trimmed);
   } catch (_) {
@@ -157,10 +519,12 @@ async function generateAnswer({ question, facts, passages }) {
       try {
         return JSON.parse(trimmed.slice(start, end + 1));
       } catch (e2) {
-        throw new Error('Model output was not valid JSON.');
+        console.error('Assistant model JSON parse (substring) failed; returning plain text answer.', e2);
+        return { answer: trimmed, citations: [] };
       }
     }
-    throw new Error('Model output was not valid JSON.');
+    console.error('Assistant model output not valid JSON; returning plain text answer.');
+    return { answer: trimmed, citations: [] };
   }
 }
 
@@ -340,6 +704,11 @@ app.get('/api/assistant/health', (req, res) => {
       location: VERTEX_LOCATION || null,
       model: VERTEX_GEMINI_MODEL
     },
+    live: {
+      path: '/api/assistant/live',
+      vertexLiveLocation: VERTEX_LIVE_LOCATION,
+      vertexLiveModel: VERTEX_LIVE_MODEL
+    },
     bigquery: {
       projectId: BQ_PROJECT_ID || null,
       dataset: BQ_DATASET || null,
@@ -353,7 +722,7 @@ app.get('/api/assistant/health', (req, res) => {
 
 app.post('/api/assistant/chat', async (req, res) => {
   try {
-    const { question, mode, incidentId, providedContext } = req.body || {};
+    const { question, mode, incidentId, providedContext, history, audience } = req.body || {};
     if (!question || typeof question !== 'string') {
       return res.status(400).json({ error: 'question is required' });
     }
@@ -362,6 +731,8 @@ app.post('/api/assistant/chat', async (req, res) => {
 
     const safeMode = mode === 'global' ? 'global' : 'incident';
     const safeIncidentId = safeMode === 'incident' ? String(incidentId || '').trim() : '';
+    const safeAudience = audience === 'exec' ? 'exec' : 'analyst';
+    const rawHistory = Array.isArray(history) ? history : [];
 
     const contextFacts = {};
     if (providedContext?.incident) {
@@ -384,8 +755,8 @@ app.post('/api/assistant/chat', async (req, res) => {
     const bqFacts = safeIncidentId ? await retrieveFacts({ incidentId: safeIncidentId }) : null;
     if (bqFacts) contextFacts.bigQueryFacts = bqFacts;
 
-    // Deterministic exact answers when possible (prevents hallucinations).
-    if (safeIncidentId && bqFacts) {
+    // Deterministic exact answers when possible (single-turn only — follow-ups need model + tone).
+    if (safeIncidentId && bqFacts && rawHistory.length === 0) {
       const exact = tryExactAnswerFromFacts(question, bqFacts);
       if (exact) {
         return res.json({
@@ -455,7 +826,9 @@ app.post('/api/assistant/chat', async (req, res) => {
         sha256: p.sha256 || null,
         fileUrl: p.fileUrl || null,
         text: p.text || ''
-      }))
+      })),
+      history: rawHistory,
+      audience: safeAudience
     });
 
     const answer = String(modelResp?.answer || '').trim() || '(No answer)';
@@ -577,7 +950,9 @@ app.post('/api/assistant/ingest/facts', async (req, res) => {
   }
 });
 
-app.listen(port, () => {
-  console.log(`Assistant API listening on port ${port}`);
+const server = http.createServer(app);
+attachLiveWebSocketProxy(server);
+server.listen(port, () => {
+  console.log(`Assistant API listening on port ${port} (HTTP + WS /api/assistant/live)`);
 });
 

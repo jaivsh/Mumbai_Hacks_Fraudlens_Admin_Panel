@@ -31,6 +31,7 @@ import {
 } from 'recharts';
 import { db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
+import ChatWidget from '../components/assistant/ChatWidget';
 
 const pageStyle = {
   minHeight: '100vh',
@@ -968,6 +969,8 @@ export default function ExecDashboard() {
           </section>
         </div>
       </main>
+
+      <ChatWidget incidentCandidates={transactions} />
     </div>
   );
 }

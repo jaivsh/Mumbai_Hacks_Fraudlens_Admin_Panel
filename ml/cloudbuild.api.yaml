@@ -1,0 +1,15 @@
+# Fraud scoring API image (inference)
+# gcloud builds submit ml --config=cloudbuild.api.yaml --substitutions=_IMAGE=gcr.io/PROJECT/fraudlens-fraud-api:latest
+substitutions:
+  _IMAGE: gcr.io/CHANGE_ME_PROJECT/fraudlens-fraud-api:latest
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - Dockerfile
+      - -t
+      - $_IMAGE
+      - .
+images:
+  - $_IMAGE

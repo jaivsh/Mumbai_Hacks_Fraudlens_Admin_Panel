@@ -40,14 +40,17 @@ import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pi
 import { db } from './firebase';
 import ScribeDashboard from './components/scribe/ScribeDashboard';
 import { generateRequiredReportsForIncident } from './components/scribe/scribeService';
-import { commitFraudDecision, getIncidentHistory, verifyDocument } from './services/chronosService';
+import { commitFraudDecision, getIncidentHistory, verifyDocument, getBaseUrl } from './services/chronosService';
 import { getBankFromVpa, getBankPersonaFromUrl, getBankBadgeStyle } from './utils/bankHelper';
+import { ingestFactsToAssistant } from './services/assistantService';
 import { useAuth } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import ChatWidget from './components/assistant/ChatWidget';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import PendingApproval from './pages/PendingApproval';
 import ExecDashboard from './pages/ExecDashboard';
+import FraudApiPlayground from './pages/FraudApiPlayground';
 
 // Mock Firebase for demo
 // const db = {};
@@ -69,6 +72,7 @@ const FraudLensAdminPanel = () => {
   const [ledgerCommittedFor, setLedgerCommittedFor] = useState(null);
   const [incidentHistory, setIncidentHistory] = useState(null);
   const [evidenceReports, setEvidenceReports] = useState([]);
+  const [hashVerifyModal, setHashVerifyModal] = useState(null);
 
   // Direct link to NCRP complaint acceptance page so users land closer to the form.
   const NCRP_PORTAL_URL = 'https://cybercrime.gov.in/Webform/Accept.aspx';
@@ -108,6 +112,22 @@ const FraudLensAdminPanel = () => {
           ncrpStatus: 'initiated',
           ncrpOpenedAt: Timestamp.now()
         });
+        try {
+          await ingestFactsToAssistant({
+            incidentId: transaction.id,
+            facts: {
+              ncrpStatus: 'initiated',
+              amount: transaction.amount || null,
+              currency: transaction.currency || 'INR',
+              status: transaction.status || null,
+              fraudScore: transaction.fraudScore || null,
+              modelDecision: transaction.modelDecision != null ? Boolean(transaction.modelDecision) : null,
+              timestamp: transaction.timestamp?.toDate?.()?.toISOString?.() || null
+            }
+          });
+        } catch (e) {
+          console.error('Assistant facts ingest failed (non-fatal)', e);
+        }
       }
     } catch (err) {
       console.error('Failed to update NCRP status on transaction', err);
@@ -446,6 +466,7 @@ const FraudLensAdminPanel = () => {
         alert('❌ Transaction not found');
         return;
       }
+      const prevStatus = String(transaction.status || '').toLowerCase();
 
       const amount = transaction.amount || 0;
       const payerUserId = transaction.payerUserId;
@@ -457,6 +478,24 @@ const FraudLensAdminPanel = () => {
         reviewedAt: Timestamp.now(),
         reviewedBy: 'admin'
       });
+
+      // Feed deterministic facts to the Assistant (enterprise analytics/RAG). Non-fatal.
+      try {
+        await ingestFactsToAssistant({
+          incidentId: transactionId,
+          facts: {
+            amount: amount || null,
+            currency: transaction.currency || 'INR',
+            status: status.toLowerCase(),
+            fraudScore: transaction.fraudScore || null,
+            modelDecision: transaction.modelDecision != null ? Boolean(transaction.modelDecision) : null,
+            ncrpStatus: transaction.ncrpStatus || null,
+            timestamp: transaction.timestamp?.toDate?.()?.toISOString?.() || null
+          }
+        });
+      } catch (e) {
+        console.error('Assistant facts ingest failed (non-fatal)', e);
+      }
 
       // Handle balance updates based on status
       if (status.toLowerCase() === 'approved') {
@@ -481,48 +520,50 @@ const FraudLensAdminPanel = () => {
           console.log('💰 Balance updates completed successfully');
         }
 
-        // Auto-generate RBI + CERT-In + Exec reports via Gemini, upload to GCS, then commit hashes to ledger.
-        // This replaces the old "navigate to Scribe demo page" flow.
-        setScribeAutoGenerating(true);
-        setScribeAutoError(null);
-        try {
-          const results = await generateRequiredReportsForIncident(db, transactionId);
-          setScribeAutoDoneCount(results.length);
-          setScribeAutoDoneReports(results);
-          setScribeAutoDoneIncidentId(transactionId);
+        // Auto-commit to Chronos only once when the status first changes to blocked.
+        if (prevStatus !== 'blocked') {
+          // Auto-generate RBI + CERT-In + Exec reports via Gemini, upload to GCS, then commit hashes to ledger.
+          setScribeAutoGenerating(true);
+          setScribeAutoError(null);
+          try {
+            const results = await generateRequiredReportsForIncident(db, transactionId);
+            setScribeAutoDoneCount(results.length);
+            setScribeAutoDoneReports(results);
+            setScribeAutoDoneIncidentId(transactionId);
 
-          const reportsForLedger = (results || [])
-            .map((r) => ({
-              objectPath: r?.gcs?.objectPath,
-              sha256: r?.gcs?.sha256,
-              reportType: r?.reportType
-            }))
-            .filter((r) => r.objectPath && r.sha256);
+            const reportsForLedger = (results || [])
+              .map((r) => ({
+                objectPath: r?.gcs?.objectPath,
+                sha256: r?.gcs?.sha256,
+                reportType: r?.reportType
+              }))
+              .filter((r) => r.objectPath && r.sha256);
 
-          // Commit decision + evidence hashes to Chronos ledger (Hyperledger-backed on VM).
-          const payerBank = getBankFromVpa(transaction.payerVpa);
-          const ledgerResult = await commitFraudDecision(
-            transactionId,
-            'FRAUD_CONFIRMED',
-            'AUTO_REPORTS_GENERATED',
-            reportsForLedger,
-            profile?.email || 'admin',
-            payerBank.code
-          );
-          if (!ledgerResult.ok) {
-            console.warn('Chronos ledger commit failed:', ledgerResult.error);
-          } else {
-            setLedgerCommittedFor(transactionId);
-            // Refresh ledger history + evidence list for UI persistence across reloads.
-            const hist = await getIncidentHistory(transactionId);
-            if (hist.ok && hist.data) setIncidentHistory(hist.data);
-            if (reportsForLedger.length > 0) setEvidenceReports(reportsForLedger);
+            // Commit decision + evidence hashes to Chronos ledger.
+            const payerBank = getBankFromVpa(transaction.payerVpa);
+            const ledgerResult = await commitFraudDecision(
+              transactionId,
+              'FRAUD_SUSPECTED',
+              'AUTO_BLOCKED',
+              reportsForLedger,
+              profile?.email || 'admin',
+              payerBank.code
+            );
+            if (!ledgerResult.ok) {
+              console.warn('Chronos ledger commit failed:', ledgerResult.error);
+            } else {
+              setLedgerCommittedFor(transactionId);
+              // Refresh ledger history + evidence list for UI persistence across reloads.
+              const hist = await getIncidentHistory(transactionId);
+              if (hist.ok && hist.data) setIncidentHistory(hist.data);
+              if (reportsForLedger.length > 0) setEvidenceReports(reportsForLedger);
+            }
+          } catch (err) {
+            console.error('Auto-generate + ledger commit failed', err);
+            setScribeAutoError(err.message || 'Failed to generate reports.');
+          } finally {
+            setScribeAutoGenerating(false);
           }
-        } catch (err) {
-          console.error('Auto-generate + ledger commit failed', err);
-          setScribeAutoError(err.message || 'Failed to generate reports.');
-        } finally {
-          setScribeAutoGenerating(false);
         }
       }
       
@@ -818,23 +859,33 @@ const FraudLensAdminPanel = () => {
     const [isLeafletLoaded, setLeafletLoaded] = React.useState(!!window.L);
 
     React.useEffect(() => {
-      if (window.L) return;
-      
-      const cssLink = document.createElement('link');
-      cssLink.rel = 'stylesheet';
-      cssLink.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-      document.head.appendChild(cssLink);
-      
-      const script = document.createElement('script');
-      script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+      // Ensure Leaflet CSS is present even if Leaflet JS was loaded earlier.
+      // If we remove the CSS on unmount and later re-open the Map tab, Leaflet renders unstyled and "splits" layout.
+      const cssId = 'leaflet-css';
+      let cssLink = document.getElementById(cssId);
+      if (!cssLink) {
+        cssLink = document.createElement('link');
+        cssLink.id = cssId;
+        cssLink.rel = 'stylesheet';
+        cssLink.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+        document.head.appendChild(cssLink);
+      }
+
+      if (window.L) {
+        setLeafletLoaded(true);
+        return;
+      }
+
+      // Load Leaflet JS once.
+      const scriptId = 'leaflet-js';
+      let script = document.getElementById(scriptId);
+      if (!script) {
+        script = document.createElement('script');
+        script.id = scriptId;
+        script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+        document.head.appendChild(script);
+      }
       script.onload = () => setLeafletLoaded(true);
-      document.head.appendChild(script);
-      
-      return () => {
-        if (document.head.contains(cssLink)) {
-          document.head.removeChild(cssLink);
-        }
-      };
     }, []);
 
     React.useEffect(() => {
@@ -1406,25 +1457,7 @@ const FraudLensAdminPanel = () => {
               </button>
             )}
             {(transaction.status === 'blocked' || transaction.modelDecision) && (
-              <button
-                type="button"
-                onClick={() => onConfirmFraudCommitLedger?.(transaction)}
-                disabled={commitLedgerLoading || ledgerCommittedFor === transaction.id}
-                style={{
-                  ...buttonStyle,
-                  backgroundColor: ledgerCommittedFor === transaction.id ? '#059669' : '#0d9488',
-                  opacity: commitLedgerLoading ? 0.7 : 1
-                }}
-                title="Record immutable fraud decision on Chronos audit ledger for RBI"
-              >
-                {commitLedgerLoading ? (
-                  'Committing…'
-                ) : ledgerCommittedFor === transaction.id ? (
-                  '✓ Committed to Ledger'
-                ) : (
-                  'Confirm Fraud & Commit to Ledger'
-                )}
-              </button>
+              null
             )}
           </div>
         </div>
@@ -1435,7 +1468,7 @@ const FraudLensAdminPanel = () => {
 
         {ledgerCommittedFor === transaction.id && (
           <div style={{ padding: '12px 16px', backgroundColor: '#d1fae5', borderRadius: 8, marginBottom: 16, color: '#065f46', fontSize: 14 }}>
-            ✓ Immutable fraud decision recorded for RBI audit.
+            ✓ Fraud suspected decision anchored to Chronos ledger (read-only confirmation below).
           </div>
         )}
 
@@ -1482,6 +1515,90 @@ const FraudLensAdminPanel = () => {
                 <span style={{ fontFamily: 'monospace', fontSize: 12 }}>
                   {incidentHistory?.events?.[0]?.reports?.[0]?.sha256 || incidentHistory?.evidenceHash || incidentHistory?.reports?.[0]?.sha256 || '—'}
                 </span>
+              </div>
+            )}
+
+            {Array.isArray(incidentHistory?.events) && incidentHistory.events.length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <h3 style={sectionTitleStyle}>
+                  <Shield size={18} />
+                  Chronos Ledger Explorer (Read-only)
+                </h3>
+                <div
+                  style={{
+                    border: '1px solid #e5e7eb',
+                    borderRadius: 8,
+                    backgroundColor: '#f9fafb',
+                    padding: 12,
+                    maxHeight: 320,
+                    overflowY: 'auto'
+                  }}
+                >
+                  {incidentHistory.events.map((ev, idx) => {
+                    const decisionLike = ev?.decision || ev?.reasonCode || ev?.type || ev?.action || '—';
+                    const tsLike = ev?.timestamp || ev?.createdAt || ev?.time || '—';
+                    return (
+                      <div
+                        key={idx}
+                        style={{
+                          padding: 10,
+                          border: '1px solid rgba(148,163,184,0.35)',
+                          borderRadius: 8,
+                          marginBottom: 10,
+                          backgroundColor: 'white'
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                          <span style={{ fontWeight: 700, color: '#111827' }}>Ledger event #{idx + 1}</span>
+                          <span style={{ fontSize: 12, color: '#6b7280', fontFamily: 'monospace' }}>{String(tsLike)}</span>
+                        </div>
+
+                        <div style={{ fontSize: 13, color: '#374151', marginTop: 6 }}>
+                          Decision / Reason: <b>{String(decisionLike)}</b>
+                        </div>
+
+                        {Array.isArray(ev?.reports) && ev.reports.length > 0 && (
+                          <div style={{ marginTop: 10 }}>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: '#64748b', marginBottom: 6 }}>Reports</div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                              {ev.reports.map((r, ri) => (
+                                <div
+                                  key={ri}
+                                  style={{
+                                    fontSize: 12,
+                                    color: '#374151',
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    gap: 10,
+                                    flexWrap: 'wrap',
+                                    padding: '8px 10px',
+                                    borderRadius: 8,
+                                    border: '1px solid rgba(148,163,184,0.22)',
+                                    backgroundColor: '#f3f4f6'
+                                  }}
+                                >
+                                  <span>
+                                    <b>{r?.reportType || 'Report'}</b> · {r?.objectPath || '—'}
+                                  </span>
+                                  <span style={{ fontFamily: 'monospace', color: '#6b7280' }}>
+                                    {r?.sha256 || '—'}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        <details style={{ marginTop: 10 }}>
+                          <summary style={{ cursor: 'pointer', fontSize: 12, fontWeight: 700, color: '#2563eb' }}>Raw JSON</summary>
+                          <pre style={{ marginTop: 8, marginBottom: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: 11 }}>
+                            {JSON.stringify(ev, null, 2)}
+                          </pre>
+                        </details>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>
@@ -1655,26 +1772,18 @@ const FraudLensAdminPanel = () => {
               <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 8 }}>
                 UTR: {transaction.utr || 'N/A'} · VPA: {transaction.payerVpa || 'N/A'} · ₹{transaction.amount?.toLocaleString()}
               </div>
-              <button
-                type="button"
-                onClick={() => handleConfirmFraudAndCommitLedger(transaction)}
-                style={{ ...primaryButtonStyle, display: 'inline-flex', fontSize: 12, padding: '6px 12px' }}
-              >
-                Generate & Anchor Evidence Pack
-              </button>
+              <div style={{ fontSize: 12, color: '#6b7280', lineHeight: 1.45 }}>
+                Evidence pack is auto-generated & anchored when you mark the incident as <b>Blocked</b>.
+              </div>
             </div>
             <div style={{ padding: 12, border: '1px solid #e5e7eb', borderRadius: 8, backgroundColor: '#f9fafb' }}>
               <div style={{ fontWeight: 600, marginBottom: 8, color: '#374151' }}>CERT-In / Technical</div>
               <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 8 }}>
                 IP: {transaction.ipData?.ipAddress || 'N/A'} · Device ID: {transaction.deviceId || 'N/A'}
               </div>
-              <button
-                type="button"
-                onClick={() => handleConfirmFraudAndCommitLedger(transaction)}
-                style={{ ...primaryButtonStyle, display: 'inline-flex', fontSize: 12, padding: '6px 12px' }}
-              >
-                Generate & Anchor Evidence Pack
-              </button>
+              <div style={{ fontSize: 12, color: '#6b7280', lineHeight: 1.45 }}>
+                Evidence pack is auto-generated & anchored when you mark the incident as <b>Blocked</b>.
+              </div>
             </div>
             <div style={{ padding: 12, border: '1px solid #e5e7eb', borderRadius: 8, backgroundColor: '#f9fafb' }}>
               <div style={{ fontWeight: 600, marginBottom: 8, color: '#374151' }}>Police / NCRP</div>
@@ -1697,8 +1806,28 @@ const FraudLensAdminPanel = () => {
                     <button
                       type="button"
                       onClick={async () => {
-                        const res = await verifyDocument(transaction.id, r.sha256);
-                        alert(res.ok ? 'Hash verified.' : (res.error || 'Verification failed.'));
+                        setHashVerifyModal({
+                          phase: 'loading',
+                          reportType: r.reportType,
+                          objectPath: r.objectPath
+                        });
+                        const res = await verifyDocument(transaction.id, r.sha256, r.objectPath);
+                        setHashVerifyModal({
+                          phase: 'result',
+                          ok: res.ok,
+                          reportType: r.reportType,
+                          objectPath: r.objectPath,
+                          recordSha256: r.sha256,
+                          storageSha256: res.data?.sha256,
+                          source: res.data?.source,
+                          gcsPath: res.data?.gcsPath,
+                          error: res.error,
+                          incidentId: transaction.id,
+                          verifiedAt: new Date().toLocaleString(undefined, {
+                            dateStyle: 'medium',
+                            timeStyle: 'medium'
+                          })
+                        });
                       }}
                       style={{ marginLeft: 8, ...buttonStyle, padding: '4px 8px', fontSize: 11, backgroundColor: '#374151' }}
                     >
@@ -1975,16 +2104,34 @@ const FraudLensAdminPanel = () => {
             <Shield size={32} color="#2563eb" />
             <h1 style={headerTitleStyle}>FraudLens Admin Panel</h1>
             <span style={dbStatusStyle}>
-              {error ? '🔴 Error' : '🟢 Connected'} ({transactions.length} transactions)
+              {error ? '🔴 Error' : '🟢 Connected to Database'}
             </span>
           </div>
           <div style={headerRightStyle}>
             {isDemo && <span style={{ ...dbStatusStyle, backgroundColor: '#fef3c7', color: '#92400e', marginRight: 8 }}>Demo</span>}
-            <span style={{ fontSize: 13, color: '#6b7280' }}>
-              {profile?.displayName || profile?.email} <span style={{ ...dbStatusStyle, marginLeft: 8 }}>{profile?.role === 'it_admin' ? 'IT Admin' : 'IT'}</span>
+            <span style={{ fontSize: 13, color: '#6b7280', display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+              <span
+                style={{
+                  display: 'inline-block',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  minWidth: 0,
+                  maxWidth: 280
+                }}
+                title={profile?.email || profile?.displayName || ''}
+              >
+                {profile?.email || profile?.displayName || ''}
+              </span>
+              <span style={{ ...dbStatusStyle }}>
+                {profile?.role === 'exec' ? 'Exec' : profile?.role === 'it_admin' ? 'IT Admin' : 'IT'}
+              </span>
             </span>
             <Link to="/reports" style={scribeNavButtonStyle}>
               Scribe Reports
+            </Link>
+            <Link to="/fraud-api" style={scribeNavButtonStyle}>
+              Fraud model API
             </Link>
             <div style={liveIndicatorStyle}>
               <div style={liveDotStyle}></div>
@@ -2299,6 +2446,132 @@ const FraudLensAdminPanel = () => {
         )}
       </main>
 
+      {hashVerifyModal && (
+        <div style={ncrpModalBackdropStyle} onClick={() => hashVerifyModal.phase !== 'loading' && setHashVerifyModal(null)}>
+          <div style={{ ...ncrpModalContentStyle, maxWidth: 560 }} onClick={(e) => e.stopPropagation()}>
+            {hashVerifyModal.phase === 'loading' ? (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <h3 style={{ margin: 0, fontSize: 18, color: '#1f2937', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <RefreshCw size={22} color="#4b5563" style={{ animation: 'hashVerifySpin 0.9s linear infinite' }} />
+                    Verifying artifact
+                  </h3>
+                </div>
+                <p style={{ fontSize: 14, color: '#6b7280', margin: 0 }}>
+                  Recomputing SHA-256 from stored object via Chronos (
+                  {hashVerifyModal.objectPath ? 'Google Cloud Storage' : 'ledger record'}
+                  )…
+                </p>
+                {hashVerifyModal.objectPath && (
+                  <p style={{ fontSize: 12, color: '#9ca3af', marginTop: 12, wordBreak: 'break-all', fontFamily: 'monospace' }}>
+                    {hashVerifyModal.objectPath}
+                  </p>
+                )}
+              </>
+            ) : hashVerifyModal.ok ? (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+                  <h3 style={{ margin: 0, fontSize: 18, color: '#065f46', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <CheckCircle size={24} color="#059669" />
+                    Integrity check passed
+                  </h3>
+                  <button type="button" onClick={() => setHashVerifyModal(null)} style={{ ...iconButtonStyle, fontSize: 24, lineHeight: 1 }} aria-label="Close">×</button>
+                </div>
+                <p style={{ fontSize: 14, color: '#374151', margin: '0 0 16px 0', lineHeight: 1.5 }}>
+                  The file in storage still produces the same SHA-256 as the one recorded for this incident. The PDF has not been altered since upload.
+                </p>
+                <dl style={{ margin: 0, fontSize: 13, color: '#4b5563' }}>
+                  <dt style={{ fontWeight: 600, color: '#6b7280', marginTop: 8 }}>Report</dt>
+                  <dd style={{ margin: '4px 0 0 0' }}>{hashVerifyModal.reportType || '—'}</dd>
+                  <dt style={{ fontWeight: 600, color: '#6b7280', marginTop: 12 }}>Incident</dt>
+                  <dd style={{ margin: '4px 0 0 0', fontFamily: 'monospace', fontSize: 12, wordBreak: 'break-all' }}>{hashVerifyModal.incidentId || '—'}</dd>
+                  <dt style={{ fontWeight: 600, color: '#6b7280', marginTop: 12 }}>Object path</dt>
+                  <dd style={{ margin: '4px 0 0 0', fontFamily: 'monospace', fontSize: 11, wordBreak: 'break-all' }}>{hashVerifyModal.objectPath || '—'}</dd>
+                  <dt style={{ fontWeight: 600, color: '#6b7280', marginTop: 12 }}>SHA-256 (full)</dt>
+                  <dd style={{ margin: '4px 0 0 0', fontFamily: 'monospace', fontSize: 11, wordBreak: 'break-all', color: '#111827' }}>
+                    {hashVerifyModal.recordSha256 || hashVerifyModal.storageSha256 || '—'}
+                  </dd>
+                  <dt style={{ fontWeight: 600, color: '#6b7280', marginTop: 12 }}>Verification method</dt>
+                  <dd style={{ margin: '4px 0 0 0' }}>
+                    {hashVerifyModal.source === 'gcs'
+                      ? 'Recomputed from object bytes in Google Cloud Storage (Chronos /api/docs/meta).'
+                      : hashVerifyModal.source === 'ledger'
+                        ? 'Matched hash on committed Chronos ledger event.'
+                        : 'Chronos verification.'}
+                  </dd>
+                  <dt style={{ fontWeight: 600, color: '#6b7280', marginTop: 12 }}>Checked at</dt>
+                  <dd style={{ margin: '4px 0 0 0' }}>{hashVerifyModal.verifiedAt}</dd>
+                </dl>
+                {hashVerifyModal.objectPath && getBaseUrl() ? (
+                  <div style={{ display: 'flex', gap: 12, marginTop: 20, flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const base = getBaseUrl().replace(/\/$/, '');
+                        const url = `${base}/api/docs/file?objectPath=${encodeURIComponent(hashVerifyModal.objectPath)}`;
+                        window.open(url, '_blank', 'noopener,noreferrer');
+                      }}
+                      style={{ ...buttonStyle, backgroundColor: '#374151', color: 'white', display: 'inline-flex', alignItems: 'center', gap: 8 }}
+                    >
+                      <ExternalLink size={16} />
+                      Open PDF from storage
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const text = [
+                          hashVerifyModal.reportType,
+                          hashVerifyModal.incidentId,
+                          hashVerifyModal.objectPath,
+                          hashVerifyModal.recordSha256 || hashVerifyModal.storageSha256,
+                          hashVerifyModal.gcsPath
+                        ]
+                          .filter(Boolean)
+                          .join('\n');
+                        navigator.clipboard.writeText(text).then(
+                          () => alert('Audit details copied to clipboard.'),
+                          () => alert('Copy failed. Select the details and copy manually.')
+                        );
+                      }}
+                      style={{ ...buttonStyle, backgroundColor: '#e5e7eb', color: '#374151', display: 'inline-flex', alignItems: 'center', gap: 8 }}
+                    >
+                      <Copy size={16} />
+                      Copy audit details
+                    </button>
+                  </div>
+                ) : null}
+                <div style={{ marginTop: 20 }}>
+                  <button type="button" onClick={() => setHashVerifyModal(null)} style={{ ...primaryButtonStyle }}>
+                    Close
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+                  <h3 style={{ margin: 0, fontSize: 18, color: '#991b1b', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <AlertTriangle size={24} color="#dc2626" />
+                    Verification failed
+                  </h3>
+                  <button type="button" onClick={() => setHashVerifyModal(null)} style={{ ...iconButtonStyle, fontSize: 24, lineHeight: 1 }} aria-label="Close">×</button>
+                </div>
+                <p style={{ fontSize: 14, color: '#374151', margin: '0 0 12px 0' }}>{hashVerifyModal.error || 'Could not verify this artifact.'}</p>
+                {hashVerifyModal.objectPath && (
+                  <p style={{ fontSize: 12, color: '#6b7280', fontFamily: 'monospace', wordBreak: 'break-all', margin: 0 }}>{hashVerifyModal.objectPath}</p>
+                )}
+                <div style={{ marginTop: 20 }}>
+                  <button type="button" onClick={() => setHashVerifyModal(null)} style={{ ...buttonStyle, backgroundColor: '#e5e7eb', color: '#374151' }}>
+                    Close
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      <style>{`@keyframes hashVerifySpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+
       {ncrpModalOpen && ncrpReportTransaction && (
         <div style={ncrpModalBackdropStyle} onClick={() => setNcrpModalOpen(false)}>
           <div style={ncrpModalContentStyle} onClick={(e) => e.stopPropagation()}>
@@ -2339,6 +2612,16 @@ const FraudLensAdminPanel = () => {
         <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 9999, background: '#059669', color: 'white', padding: '12px 20px', borderRadius: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', display: 'flex', alignItems: 'center', gap: 12 }}>
           <CheckCircle size={20} />
           <span>{scribeAutoDoneCount} reports generated and uploaded. Evidence anchored for audit.</span>
+          {Array.isArray(scribeAutoDoneReports) && scribeAutoDoneReports.length > 0 && (
+            <Link
+              to={`/reports?reportIds=${encodeURIComponent(
+                scribeAutoDoneReports.map((r) => r.reportId).filter(Boolean).join(',')
+              )}&incidentId=${encodeURIComponent(scribeAutoDoneIncidentId || '')}`}
+              style={{ color: 'white', fontWeight: 700, textDecoration: 'underline' }}
+            >
+              Open latest reports
+            </Link>
+          )}
           <button
             type="button"
             onClick={() => {
@@ -2353,6 +2636,32 @@ const FraudLensAdminPanel = () => {
           </button>
         </div>
       )}
+
+      {scribeAutoGenerating && (
+        <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 9999, background: '#111827', color: 'white', padding: '10px 14px', borderRadius: 10, boxShadow: '0 4px 12px rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <RefreshCw size={18} style={{ animation: 'spin 1s linear infinite' }} />
+          <span style={{ fontSize: 13, fontWeight: 600 }}>Generating compliance reports…</span>
+        </div>
+      )}
+
+      {scribeAutoError && !scribeAutoGenerating && (
+        <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 9999, background: '#991b1b', color: 'white', padding: '10px 14px', borderRadius: 10, boxShadow: '0 4px 12px rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', gap: 10, maxWidth: 420 }}>
+          <XCircle size={18} />
+          <span style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            Scribe auto-generate failed: {String(scribeAutoError)}
+          </span>
+          <button
+            type="button"
+            onClick={() => setScribeAutoError(null)}
+            style={{ background: 'transparent', border: 'none', color: 'white', cursor: 'pointer', fontSize: 18, lineHeight: 1 }}
+            aria-label="Dismiss"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
+      <ChatWidget incident={selectedTransaction} incidentCandidates={transactions} />
     </div>
   );
 };
@@ -2365,6 +2674,7 @@ const App = () => (
       <Route path="/pending" element={<PendingApproval />} />
       <Route path="/" element={<ProtectedRoute role="it"><FraudLensAdminPanel /></ProtectedRoute>} />
       <Route path="/reports" element={<ProtectedRoute role="it"><ScribeDashboard /></ProtectedRoute>} />
+      <Route path="/fraud-api" element={<ProtectedRoute role="it"><FraudApiPlayground /></ProtectedRoute>} />
       <Route path="/exec" element={<ProtectedRoute role="exec"><ExecDashboard /></ProtectedRoute>} />
       <Route path="/exec/reports" element={<ProtectedRoute role="exec"><ScribeDashboard /></ProtectedRoute>} />
     </Routes>
@@ -2589,16 +2899,25 @@ const dbStatusStyle = {
 const headerRightStyle = {
   display: 'flex',
   alignItems: 'center',
-  gap: '16px'
+  gap: '10px',
+  flexWrap: 'wrap',
+  justifyContent: 'flex-end',
+  minWidth: 0,
+  maxWidth: '100%'
 };
 
 const scribeNavButtonStyle = {
-  padding: '8px 14px',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: '8px 12px',
   borderRadius: '6px',
   border: '1px solid #2563eb',
   color: '#2563eb',
   fontWeight: 600,
-  textDecoration: 'none'
+  textDecoration: 'none',
+  whiteSpace: 'nowrap',
+  lineHeight: 1
 };
 
 const liveIndicatorStyle = {
@@ -2641,7 +2960,8 @@ const navContentStyle = {
 
 const navTabsStyle = {
   display: 'flex',
-  gap: '32px'
+  gap: '18px',
+  flexWrap: 'wrap'
 };
 
 const navTabStyle = {
@@ -2909,7 +3229,7 @@ const emptyStateStyle = {
 };
 
 const transactionListStyle = {
-  maxHeight: '400px',
+  maxHeight: 'min(560px, calc(100vh - 320px))',
   overflowY: 'auto',
   display: 'flex',
   flexDirection: 'column',
@@ -2994,21 +3314,29 @@ const transactionIdStyle = {
 };
 
 const actionButtonsStyle = {
-  display: 'flex',
-  gap: '8px'
+  display: 'grid',
+  gap: '10px',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+  alignItems: 'stretch',
+  width: '100%'
 };
 
 const buttonStyle = {
   display: 'flex',
   alignItems: 'center',
+  justifyContent: 'center',
   gap: '8px',
-  padding: '8px 16px',
+  padding: '10px 12px',
   border: 'none',
   borderRadius: '6px',
   fontSize: '14px',
   fontWeight: '500',
   cursor: 'pointer',
-  color: 'white'
+  color: 'white',
+  minHeight: 42,
+  textAlign: 'center',
+  whiteSpace: 'normal',
+  lineHeight: 1.15
 };
 
 const reviewContentStyle = {
@@ -3117,7 +3445,9 @@ const chartTitleStyle = {
 const alertsLayoutStyle = {
   display: 'grid',
   gridTemplateColumns: '1fr 1fr',
-  gap: '32px'
+  gap: '32px',
+  // Default grid stretch makes the alerts card as tall as Case Review while the list is max 400px — huge empty band.
+  alignItems: 'start'
 };
 
 const loadingContainerStyle = {

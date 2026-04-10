@@ -1,0 +1,13 @@
+# Cloud Run Job: cross-silo federated round (merge two node CSVs → train → publish GCS)
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY config.py features.py train_pipeline.py gcs_model_store.py federated_aggregate_train.py ./
+
+ENV PYTHONUNBUFFERED=1
+
+ENTRYPOINT ["python", "federated_aggregate_train.py"]

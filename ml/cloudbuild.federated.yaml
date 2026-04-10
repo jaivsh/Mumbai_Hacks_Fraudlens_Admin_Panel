@@ -1,0 +1,15 @@
+# Push to Artifact Registry (not gcr.io — avoids createOnPush permission issues).
+# gcloud builds submit ml --config=cloudbuild.federated.yaml --substitutions=_IMAGE=asia-south1-docker.pkg.dev/PROJECT/containers/fraudlens-fed-aggregator:latest
+substitutions:
+  _IMAGE: asia-south1-docker.pkg.dev/CHANGE_ME_PROJECT/containers/fraudlens-fed-aggregator:latest
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - Dockerfile.federated-aggregator
+      - -t
+      - $_IMAGE
+      - .
+images:
+  - $_IMAGE

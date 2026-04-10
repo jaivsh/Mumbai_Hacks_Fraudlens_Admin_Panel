@@ -2,6 +2,8 @@
 
 # dependencies
 /node_modules
+scribe_api/node_modules
+assistant_api/node_modules
 Hyperledger_chain/node_modules
 /.pnp
 .pnp.js

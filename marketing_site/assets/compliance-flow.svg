@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="360" viewBox="0 0 1200 360" role="img" aria-label="Compliance drafting workflow">
+  <defs>
+    <linearGradient id="g" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0" stop-color="#2563eb"/>
+      <stop offset="1" stop-color="#22c55e"/>
+    </linearGradient>
+    <style>
+      .t{font-family: ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; fill:#e5e7eb}
+      .m{fill:#94a3b8}
+      .h{font-weight:900}
+      .s{font-size:14px}
+      .xs{font-size:12px}
+      .box{fill:rgba(2,6,23,0.35); stroke:rgba(148,163,184,0.18); stroke-width:1.5; rx:16}
+      .arrow{stroke:#93c5fd; stroke-width:2; fill:none; stroke-linecap:round; stroke-linejoin:round}
+    </style>
+  </defs>
+  <rect x="0" y="0" width="1200" height="360" fill="rgba(2,6,23,0.0)"/>
+
+  <g>
+    <rect class="box" x="60" y="70" width="210" height="120"/>
+    <text class="t h s" x="84" y="105">Incident</text>
+    <text class="t m xs" x="84" y="128">triage + decision</text>
+    <text class="t m xs" x="84" y="148">ownership + notes</text>
+
+    <rect class="box" x="310" y="70" width="210" height="120"/>
+    <text class="t h s" x="334" y="105">Scribe</text>
+    <text class="t m xs" x="334" y="128">RBI / CERTIn / Exec</text>
+    <text class="t m xs" x="334" y="148">draft generation</text>
+
+    <rect class="box" x="560" y="70" width="210" height="120"/>
+    <text class="t h s" x="584" y="105">Review</text>
+    <text class="t m xs" x="584" y="128">compliance + legal</text>
+    <text class="t m xs" x="584" y="148">approve / edit</text>
+
+    <rect class="box" x="810" y="70" width="210" height="120"/>
+    <text class="t h s" x="834" y="105">Evidence</text>
+    <text class="t m xs" x="834" y="128">PDF + sha256</text>
+    <text class="t m xs" x="834" y="148">audit ready</text>
+
+    <rect class="box" x="1060" y="70" width="80" height="120"/>
+    <text class="t h s" x="1076" y="105">File</text>
+    <text class="t m xs" x="1076" y="128">portal</text>
+    <text class="t m xs" x="1076" y="148">manual</text>
+
+    <path class="arrow" d="M270 130 C295 130 295 130 310 130"/>
+    <path class="arrow" d="M520 130 C545 130 545 130 560 130"/>
+    <path class="arrow" d="M770 130 C795 130 795 130 810 130"/>
+    <path class="arrow" d="M1020 130 C1042 130 1042 130 1060 130"/>
+
+    <path class="arrow" d="M310 130 l-10 -6 m10 6 l-10 6"/>
+    <path class="arrow" d="M560 130 l-10 -6 m10 6 l-10 6"/>
+    <path class="arrow" d="M810 130 l-10 -6 m10 6 l-10 6"/>
+    <path class="arrow" d="M1060 130 l-10 -6 m10 6 l-10 6"/>
+  </g>
+
+  <text class="t m xs" x="60" y="230">Draft-first is intentional: it reduces accidental disclosure and matches real bank compliance workflows.</text>
+  <rect x="60" y="246" width="240" height="8" fill="url(#g)" rx="999"/>
+</svg>
+

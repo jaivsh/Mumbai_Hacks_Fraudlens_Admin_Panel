@@ -1,0 +1,124 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="640" viewBox="0 0 1200 640" role="img" aria-label="FraudLens federated reference architecture">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#0b1220"/>
+      <stop offset="1" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0" stop-color="#2563eb"/>
+      <stop offset="1" stop-color="#22c55e"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="12" stdDeviation="18" flood-color="#000000" flood-opacity="0.35"/>
+    </filter>
+    <style>
+      .t{font-family: ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; fill:#e5e7eb}
+      .m{fill:#94a3b8}
+      .k{fill:#cbd5e1}
+      .h{font-weight:800}
+      .s{font-size:14px}
+      .xs{font-size:12px}
+      .box{fill:rgba(2,6,23,0.35); stroke:rgba(148,163,184,0.18); stroke-width:1.5; rx:18}
+      .box2{fill:rgba(15,23,42,0.55); stroke:rgba(148,163,184,0.22); stroke-width:1.5; rx:18}
+      .pill{fill:rgba(37,99,235,0.14); stroke:rgba(37,99,235,0.45); stroke-width:1.2; rx:999}
+      .arrow{stroke:#93c5fd; stroke-width:2; fill:none; stroke-linecap:round; stroke-linejoin:round}
+      .arrow2{stroke:#34d399; stroke-width:2; fill:none; stroke-linecap:round; stroke-linejoin:round}
+      .dash{stroke-dasharray:6 6}
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1200" height="640" fill="url(#bg)"/>
+
+  <g filter="url(#shadow)">
+    <rect class="box2" x="40" y="34" width="1120" height="572"/>
+  </g>
+
+  <rect x="70" y="58" width="180" height="34" class="pill"/>
+  <text class="t h s" x="92" y="81">Federated architecture</text>
+  <text class="t m s" x="280" y="81">Customer data stays in your boundary; only governed signals and artifacts flow out.</text>
+
+  <!-- Left: Bank boundary -->
+  <g>
+    <rect class="box" x="80" y="130" width="360" height="420"/>
+    <text class="t h s" x="110" y="165">Your environment (Bank / Fintech)</text>
+    <text class="t m xs" x="110" y="188">VPC / onprem / private cloud</text>
+
+    <rect class="box2" x="110" y="220" width="300" height="84"/>
+    <text class="t h s" x="130" y="250">Core systems</text>
+    <text class="t m xs" x="130" y="272">CBS / UPI rails " KYC " device/IP</text>
+    <text class="t m xs" x="130" y="292">transaction streams</text>
+
+    <rect class="box2" x="110" y="318" width="300" height="96"/>
+    <text class="t h s" x="130" y="350">FraudLens Runtime</text>
+    <text class="t m xs" x="130" y="372">Detection + triage + decision</text>
+    <text class="t m xs" x="130" y="392">RBAC " audit logs " workflows</text>
+
+    <rect class="box2" x="110" y="428" width="300" height="92"/>
+    <text class="t h s" x="130" y="460">Scribe (draft engine)</text>
+    <text class="t m xs" x="130" y="482">RBI/CERTIn/Exec drafts</text>
+    <text class="t m xs" x="130" y="502">review before submission</text>
+  </g>
+
+  <!-- Center: Control plane -->
+  <g>
+    <rect class="box" x="470" y="130" width="280" height="420"/>
+    <text class="t h s" x="498" y="165">FraudLens Control Plane</text>
+    <text class="t m xs" x="498" y="188">Config + governance + observability</text>
+
+    <rect class="box2" x="500" y="225" width="220" height="92"/>
+    <text class="t h s" x="520" y="255">Policy & routing</text>
+    <text class="t m xs" x="520" y="277">who reviews what</text>
+    <text class="t m xs" x="520" y="297">approval gates</text>
+
+    <rect class="box2" x="500" y="330" width="220" height="92"/>
+    <text class="t h s" x="520" y="360">Telemetry</text>
+    <text class="t m xs" x="520" y="382">KPIs " alerts " dashboards</text>
+    <text class="t m xs" x="520" y="402">audit reporting</text>
+
+    <rect class="box2" x="500" y="435" width="220" height="92"/>
+    <text class="t h s" x="520" y="465">Integrations</text>
+    <text class="t m xs" x="520" y="487">SIEM/SOC " BI " ticketing</text>
+    <text class="t m xs" x="520" y="507">data warehouse</text>
+  </g>
+
+  <!-- Right: Evidence + Analytics -->
+  <g>
+    <rect class="box" x="780" y="130" width="340" height="420"/>
+    <text class="t h s" x="808" y="165">Evidence & Analytics</text>
+    <text class="t m xs" x="808" y="188">Private storage + verifiable integrity + search</text>
+
+    <rect class="box2" x="810" y="220" width="280" height="92"/>
+    <text class="t h s" x="830" y="250">Evidence store (PDF)</text>
+    <text class="t m xs" x="830" y="272">Private bucket (GCS/S3/Blob)</text>
+    <text class="t m xs" x="830" y="292">API-mediated access</text>
+
+    <rect class="box2" x="810" y="330" width="280" height="92"/>
+    <text class="t h s" x="830" y="360">Integrity layer</text>
+    <text class="t m xs" x="830" y="382">sha256 per artifact</text>
+    <text class="t m xs" x="830" y="402">verification workflow</text>
+
+    <rect class="box2" x="810" y="440" width="280" height="92"/>
+    <text class="t h s" x="830" y="470">Search + BI</text>
+    <text class="t m xs" x="830" y="492">RAG on metadata + excerpts</text>
+    <text class="t m xs" x="830" y="512">Tableau/Looker/PowerBI via warehouse</text>
+  </g>
+
+  <!-- Arrows -->
+  <path class="arrow" d="M410 366 C445 366 445 366 470 366"/>
+  <path class="arrow" d="M410 475 C445 475 445 475 470 475"/>
+  <path class="arrow2" d="M750 270 C770 270 770 270 810 270"/>
+  <path class="arrow2" d="M750 376 C770 376 770 376 810 376"/>
+  <path class="arrow2 dash" d="M720 490 C760 490 780 490 810 490"/>
+
+  <!-- Arrow heads -->
+  <path class="arrow" d="M470 366 l-10 -6 m10 6 l-10 6"/>
+  <path class="arrow" d="M470 475 l-10 -6 m10 6 l-10 6"/>
+  <path class="arrow2" d="M810 270 l-10 -6 m10 6 l-10 6"/>
+  <path class="arrow2" d="M810 376 l-10 -6 m10 6 l-10 6"/>
+  <path class="arrow2" d="M810 490 l-10 -6 m10 6 l-10 6"/>
+
+  <!-- Bottom note -->
+  <text class="t m xs" x="84" y="590">Key idea: deploy the runtime inside your boundary; store evidence privately; verify integrity with hashes; power exec visibility via governed analytics.</text>
+  <rect x="84" y="604" width="240" height="10" fill="url(#accent)" rx="999"/>
+</svg>
+

@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FraudLens — Fraud Ops + Compliance, Audit-Ready</title>
+    <meta
+      name="description"
+      content="FraudLens helps banks and fintechs detect, investigate, and report incidents faster: executive dashboards, autonomous compliance drafts (RBI/CERT-In), and tamper-evident evidence via hashes."
+    />
+    <meta name="theme-color" content="#0b1220" />
+    <meta property="og:title" content="FraudLens — Fraud Ops + Compliance, Audit-Ready" />
+    <meta
+      property="og:description"
+      content="Detect, investigate, and report incidents faster with executive dashboards, autonomous compliance drafts, and tamper-evident evidence."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="./assets/og.png" />
+    <link rel="icon" href="./assets/favicon.png" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="siteHeader">
+      <div class="container headerInner">
+        <a class="brand" href="#top" aria-label="FraudLens Home">
+          <span class="brandMark">FL</span>
+          <span class="brandText">FraudLens</span>
+        </a>
+        <nav class="nav">
+          <a href="#usp">USP</a>
+          <a href="#product">Product</a>
+          <a href="./architecture.html">Architecture</a>
+          <a href="#compliance">Compliance</a>
+          <a href="#security">Security</a>
+          <a href="./faq.html">FAQ</a>
+          <a href="./terms.html">Legal</a>
+          <a class="navCta" href="./contact.html">Contact Sales</a>
+        </nav>
+        <button class="mobileMenuBtn" id="menuBtn" type="button" aria-label="Open menu">Menu</button>
+      </div>
+      <div class="mobileNav" id="mobileNav" aria-hidden="true">
+        <a href="#usp">USP</a>
+        <a href="#product">Product</a>
+        <a href="./architecture.html">Architecture</a>
+        <a href="#compliance">Compliance</a>
+        <a href="#security">Security</a>
+        <a href="./faq.html">FAQ</a>
+        <a href="./terms.html">Legal</a>
+        <a href="./contact.html">Contact Sales</a>
+      </div>
+    </header>
+
+    <main id="top">
+      <section class="hero">
+        <div class="container heroGrid">
+          <div>
+            <p class="chip">Built for banks & fintechs • Fast, auditable incident response</p>
+            <h1>Fraud Ops that ships decisions, reports, and evidence—fast.</h1>
+            <p class="subhead">
+              FraudLens is an incident command center for IT and leadership: live alerts, executive dashboards,
+              autonomous compliance drafts (RBI/CERT-In), and a tamper‑evident evidence layer anchored by SHA‑256 hashes.
+            </p>
+            <div class="heroActions">
+              <a class="btn primary" href="./contact.html">Book a call</a>
+              <a class="btn secondary" href="#product">Explore the product</a>
+            </div>
+            <div class="heroKpis">
+              <div class="kpi">
+                <div class="kpiVal">Minutes</div>
+                <div class="kpiLbl">to generate regulator-ready drafts</div>
+              </div>
+              <div class="kpi">
+                <div class="kpiVal">1 hash</div>
+                <div class="kpiLbl">per artifact for integrity verification</div>
+              </div>
+              <div class="kpi">
+                <div class="kpiVal">Exec</div>
+                <div class="kpiLbl">customizable widget dashboards</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="heroCard">
+            <div class="cardTop">
+              <div class="pill">Workflow</div>
+              <div class="pill muted">Incident → Reports → Evidence</div>
+            </div>
+            <div class="timeline">
+              <div class="step">
+                <div class="dot"></div>
+                <div>
+                  <div class="stepTitle">1) Detect & triage</div>
+                  <div class="stepText">Live alerts, severity, risky VPAs, IP & geo signals.</div>
+                </div>
+              </div>
+              <div class="step">
+                <div class="dot"></div>
+                <div>
+                  <div class="stepTitle">2) Decide</div>
+                  <div class="stepText">Approve / block and capture reasoning and ownership.</div>
+                </div>
+              </div>
+              <div class="step">
+                <div class="dot"></div>
+                <div>
+                  <div class="stepTitle">3) Auto-draft reports</div>
+                  <div class="stepText">RBI FMR‑style + CERT‑In + Executive Summary in seconds.</div>
+                </div>
+              </div>
+              <div class="step">
+                <div class="dot"></div>
+                <div>
+                  <div class="stepTitle">4) Store evidence</div>
+                  <div class="stepText">PDF artifacts stored with SHA‑256 hashes for tamper‑evidence.</div>
+                </div>
+              </div>
+            </div>
+            <div class="cardBottom">
+              <a class="link" href="#security">How we make it audit‑ready →</a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="usp">
+        <div class="container">
+          <h2>What makes FraudLens different</h2>
+          <p class="sectionIntro">
+            Most tools stop at “flag a transaction”. FraudLens delivers the entire incident lifecycle: decision,
+            compliance drafts, and evidence integrity—built for IT teams and exec users.
+          </p>
+
+          <div class="grid3">
+            <div class="panel">
+              <h3>Autonomous Scribe</h3>
+              <p>Generate RBI (FMR‑style), CERT‑In, and Executive Summary reports from a single incident context.</p>
+              <ul>
+                <li>India-first report formats</li>
+                <li>Recipient routing (IT/Compliance vs Leadership)</li>
+                <li>Draft-first to avoid accidental regulator sends</li>
+              </ul>
+            </div>
+            <div class="panel">
+              <h3>Chronos evidence anchoring</h3>
+              <p>Every report artifact can be stored as a PDF with a SHA‑256 hash for later verification.</p>
+              <ul>
+                <li>GCS storage + verifiable hashes</li>
+                <li>Open stored copy from the dashboard</li>
+                <li>Audit trail ready for disputes</li>
+              </ul>
+            </div>
+            <div class="panel">
+              <h3>Executive dashboards that adapt</h3>
+              <p>Role/persona dashboards with a widget library so each stakeholder sees what matters.</p>
+              <ul>
+                <li>CEO/CFO/CRO/CISO personas</li>
+                <li>NCRP + CERT‑In pipeline metrics</li>
+                <li>Trends, top risky VPAs, severity mix</li>
+              </ul>
+            </div>
+          </div>
+
+          <figure class="flFigure" style="margin-top: 14px">
+            <div class="flFigureTop">
+              <div>
+                <p class="flEyebrow">Federated-by-design</p>
+                <h3 style="margin: 0 0 6px">Run inside your boundary. Keep evidence private.</h3>
+                <p class="muted" style="margin: 0">
+                  Deploy the runtime in your VPC/on‑prem, store PDFs in a private bucket, and verify integrity with SHA‑256. See the full
+                  architecture details.
+                </p>
+              </div>
+              <div class="heroActions" style="margin: 0">
+                <a class="btn secondary" href="./architecture.html">View architecture</a>
+              </div>
+            </div>
+            <div class="flDiagram">
+              <img
+                src="./assets/federated-architecture.svg"
+                alt="Federated architecture diagram"
+                loading="lazy"
+              />
+            </div>
+          </figure>
+        </div>
+      </section>
+
+      <section class="section alt" id="product">
+        <div class="container">
+          <h2>Product modules</h2>
+          <div class="grid2">
+            <div class="panel">
+              <h3>Fraud Operations Console</h3>
+              <p>Live alerts, investigation context, action logging, and workflows for IT teams.</p>
+              <div class="tags">
+                <span>Live alerts</span><span>Case review</span><span>Approve / block</span><span>NCRP deep-link</span>
+              </div>
+            </div>
+            <div class="panel">
+              <h3>Scribe Reports</h3>
+              <p>Compliance drafts + executive summaries with view/download/send and stored-copy retrieval.</p>
+              <div class="tags">
+                <span>RBI FMR-style</span><span>CERT-In</span><span>Executive Summary</span><span>SOC/ISO/GDPR drafts</span>
+              </div>
+            </div>
+            <div class="panel">
+              <h3>Assistant (voice/text)</h3>
+              <p>Ask incident questions fast. Answers cite evidence links + hashes for verification.</p>
+              <div class="tags">
+                <span>Incident mode</span><span>Global search (RAG)</span><span>Citations</span><span>Voice input</span>
+              </div>
+            </div>
+            <div class="panel">
+              <h3>Evidence + Audit</h3>
+              <p>Store report artifacts and keep an integrity signal for transparency and dispute reduction.</p>
+              <div class="tags">
+                <span>PDF artifacts</span><span>SHA-256 hashes</span><span>Read/verify endpoints</span><span>Ledger-ready</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="compliance">
+        <div class="container">
+          <h2>Compliance posture (India-first)</h2>
+          <p class="sectionIntro">
+            FraudLens produces drafts aligned to practical reporting workflows. You control review and submission.
+          </p>
+          <div class="grid3">
+            <div class="panel">
+              <h3>RBI (Frauds — reporting)</h3>
+              <p>FMR-style fields and amount-based routing guidance (FMC/RO/CO) to help internal teams file faster.</p>
+            </div>
+            <div class="panel">
+              <h3>CERT‑In (incident drafts)</h3>
+              <p>Draft incident report structure aligned to common CERT‑In reporting needs and time-sensitivity.</p>
+            </div>
+            <div class="panel">
+              <h3>NCRP support</h3>
+              <p>Deep-link and copy-ready incident summary to expedite complaint filing workflows.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section alt" id="security">
+        <div class="container">
+          <h2>Security and auditability</h2>
+          <div class="grid2">
+            <div class="panel">
+              <h3>Tamper-evident evidence</h3>
+              <p>
+                Artifacts are stored as PDFs and referenced with SHA‑256. You can later re-compute and verify integrity.
+              </p>
+              <div class="code">
+                <code>artifact.pdf → sha256: 4928…2cc2</code>
+              </div>
+            </div>
+            <div class="panel">
+              <h3>Role-based access</h3>
+              <p>
+                Separate IT and Executive views. Keep sensitive investigation actions with IT, and high-level outcomes with leadership.
+              </p>
+            </div>
+            <div class="panel">
+              <h3>Draft-first compliance</h3>
+              <p>
+                Reports are generated as drafts and routed to internal reviewers—reducing accidental external disclosures.
+              </p>
+            </div>
+            <div class="panel">
+              <h3>Cloud-native deployment</h3>
+              <p>
+                Static frontends on CDN + private evidence bucket with API-mediated read. Backend services on Cloud Run.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="contact">
+        <div class="container contact">
+          <div>
+            <h2>Contact Sales</h2>
+            <p class="sectionIntro">
+              Tell us what you’re trying to solve. We’ll respond with a deployment plan, security posture, and an evaluation workflow.
+            </p>
+            <div class="heroActions" style="margin-top: 10px">
+              <a class="btn primary" href="./contact.html">Open intake form</a>
+              <a class="btn secondary" href="./faq.html">Read FAQ</a>
+            </div>
+            <div class="contactCards">
+              <a class="panel contactCard" href="mailto:fancybeardarmies@gmail.com?subject=FraudLens%20Sales%20Inquiry">
+                <h3>Sales / Partnerships</h3>
+                <p>fancybeardarmies@gmail.com</p>
+              </a>
+              <a class="panel contactCard" href="mailto:shuklajaivardhan3@gmail.com?subject=FraudLens%20Privacy%20Query">
+                <h3>Privacy</h3>
+                <p>shuklajaivardhan3@gmail.com</p>
+              </a>
+            </div>
+          </div>
+          <div class="panel">
+            <h3>What we need from you</h3>
+            <ul class="check">
+              <li>Your incident workflow (triage → decision → reporting)</li>
+              <li>Roles and approvals (IT/SOC vs Leadership vs Compliance)</li>
+              <li>Data residency requirements and retention period</li>
+              <li>Preferred deployment model (Cloud Run / VPC / on‑prem constraints)</li>
+            </ul>
+            <p class="fine">
+              Compliance outputs are generated as drafts and should be reviewed by your compliance/legal team prior to submission.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <footer class="footer">
+        <div class="container footerInner">
+          <div class="muted">© <span id="year"></span> FraudLens</div>
+          <div class="footerLinks">
+            <a href="./faq.html">FAQ</a>
+            <a href="./terms.html">Terms</a>
+            <a href="./privacy.html">Privacy</a>
+            <a href="./sla.html">SLA</a>
+            <a href="./nda.html">NDA</a>
+            <a href="./dpa.html">DPA</a>
+            <a href="./aup.html">AUP</a>
+            <a href="./contact.html">Contact</a>
+          </div>
+        </div>
+      </footer>
+    </main>
+
+    <script src="./main.js"></script>
+  </body>
+</html>
+

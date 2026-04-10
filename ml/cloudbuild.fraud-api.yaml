@@ -1,0 +1,14 @@
+# Fraud scoring API (FastAPI + uvicorn)
+substitutions:
+  _IMAGE: asia-south1-docker.pkg.dev/CHANGE_ME_PROJECT/containers/fraudlens-fraud-api:latest
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - Dockerfile
+      - -t
+      - $_IMAGE
+      - .
+images:
+  - $_IMAGE

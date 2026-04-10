@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FraudLens — Contact Sales</title>
+    <meta
+      name="description"
+      content="Contact FraudLens. Share your workflow, requirements, and constraints so we can propose a tailored fraud ops + compliance solution."
+    />
+    <meta name="theme-color" content="#0b1220" />
+    <link rel="icon" href="./assets/favicon.png" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="siteHeader">
+      <div class="container headerInner">
+        <a class="brand" href="./index.html" aria-label="FraudLens Home">
+          <span class="brandMark">FL</span>
+          <span class="brandText">FraudLens</span>
+        </a>
+        <nav class="nav">
+          <a href="./index.html#product">Product</a>
+          <a href="./index.html#compliance">Compliance</a>
+          <a href="./index.html#security">Security</a>
+          <a href="./faq.html">FAQ</a>
+          <a href="./terms.html">Legal</a>
+          <a class="navCta" href="./contact.html">Contact Sales</a>
+        </nav>
+        <button class="mobileMenuBtn" id="menuBtn" type="button" aria-label="Open menu">Menu</button>
+      </div>
+      <div class="mobileNav" id="mobileNav" aria-hidden="true">
+        <a href="./index.html#product">Product</a>
+        <a href="./index.html#compliance">Compliance</a>
+        <a href="./index.html#security">Security</a>
+        <a href="./faq.html">FAQ</a>
+        <a href="./terms.html">Legal</a>
+        <a href="./contact.html">Contact Sales</a>
+      </div>
+    </header>
+
+    <main>
+      <section class="pageHero">
+        <div class="container">
+          <p class="chip">Contact Sales</p>
+          <h1>Tell us your workflow. We’ll propose the right deployment.</h1>
+          <p class="subhead">
+            Share your constraints (VPC/on‑prem, residency, audit needs) and we’ll respond with an architecture option, rollout plan,
+            and what data we’d need for an evaluation.
+          </p>
+          <div class="heroActions">
+            <a class="btn secondary" href="./faq.html">Read FAQ</a>
+            <a class="btn secondary" href="./architecture.html">Architecture</a>
+            <a class="btn secondary" href="./index.html">Back to home</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="container">
+          <div class="grid2">
+            <div class="panel">
+              <h3>Solution fit form</h3>
+              <p>Short answers are fine. If you have a security questionnaire, share it after you submit.</p>
+
+              <form class="flForm" id="flContactForm" novalidate>
+                <div class="flFormRow2">
+                  <label class="flField">
+                    <span>Company name</span>
+                    <input name="companyName" autocomplete="organization" required placeholder="e.g., ABC Bank" />
+                  </label>
+                  <label class="flField">
+                    <span>Company website</span>
+                    <input name="companyWebsite" autocomplete="url" placeholder="e.g., https://example.com" />
+                  </label>
+                </div>
+
+                <div class="flFormRow2">
+                  <label class="flField">
+                    <span>Contact name</span>
+                    <input name="contactName" autocomplete="name" required placeholder="e.g., Priya Sharma" />
+                  </label>
+                  <label class="flField">
+                    <span>Work email</span>
+                    <input name="email" type="email" autocomplete="email" required placeholder="name@company.com" />
+                  </label>
+                </div>
+
+                <div class="flFormRow2">
+                  <label class="flField">
+                    <span>Phone (optional)</span>
+                    <input name="phone" autocomplete="tel" placeholder="+91…" />
+                  </label>
+                  <label class="flField">
+                    <span>Role / team</span>
+                    <input name="role" placeholder="e.g., CISO / Fraud Ops / Compliance / IT" />
+                  </label>
+                </div>
+
+                <label class="flField">
+                  <span>Primary use case</span>
+                  <textarea
+                    name="useCase"
+                    rows="4"
+                    required
+                    placeholder="What problem are you trying to solve? (fraud detection → investigation → decision → compliance reporting)"
+                  ></textarea>
+                </label>
+
+                <div class="flFormRow2">
+                  <label class="flField">
+                    <span>Deployment preference</span>
+                    <select name="deployment">
+                      <option value="">Select…</option>
+                      <option>Cloud (managed)</option>
+                      <option>Cloud (your VPC)</option>
+                      <option>On‑prem / private cloud</option>
+                      <option>Hybrid</option>
+                    </select>
+                  </label>
+                  <label class="flField">
+                    <span>Data residency</span>
+                    <select name="residency">
+                      <option value="">Select…</option>
+                      <option>India</option>
+                      <option>APAC</option>
+                      <option>Global / multi-region</option>
+                      <option>Not sure yet</option>
+                    </select>
+                  </label>
+                </div>
+
+                <div class="flFormRow2">
+                  <label class="flField">
+                    <span>Estimated incidents / month</span>
+                    <input name="volume" placeholder="e.g., 10k transactions/day, 50 incidents/month" />
+                  </label>
+                  <label class="flField">
+                    <span>Timeline</span>
+                    <select name="timeline">
+                      <option value="">Select…</option>
+                      <option>0–30 days</option>
+                      <option>1–3 months</option>
+                      <option>3–6 months</option>
+                      <option>Exploring</option>
+                    </select>
+                  </label>
+                </div>
+
+                <label class="flField">
+                  <span>Integrations / constraints</span>
+                  <textarea
+                    name="integrations"
+                    rows="4"
+                    placeholder="Core banking, SIEM/SOC tools, BI (Tableau), warehouse (BigQuery), IAM, VPC, audit requirements…"
+                  ></textarea>
+                </label>
+
+                <label class="flField">
+                  <span>Anything else?</span>
+                  <textarea name="notes" rows="3" placeholder="Optional"></textarea>
+                </label>
+
+                <div class="flActions">
+                  <button class="btn primary" type="submit">Generate email</button>
+                  <button class="btn secondary" type="button" id="flCopyIntakeBtn" disabled>Copy intake</button>
+                </div>
+
+                <p class="fine" style="margin-top: 12px">
+                  We only use this information to respond to your inquiry. Prefer direct email? Write to
+                  <a class="inlineLink" href="mailto:fancybeardarmies@gmail.com?subject=FraudLens%20Sales%20Inquiry">Sales</a>.
+                </p>
+              </form>
+            </div>
+
+            <div class="panel">
+              <h3>Intake preview</h3>
+              <p class="muted">This is what we’ll receive. You can copy this to your internal ticket too.</p>
+              <div class="code flPreview">
+                <code id="flIntakePreview">Fill the form to generate an intake summary.</code>
+              </div>
+              <div class="tags" style="margin-top: 10px">
+                <span>Architecture proposal</span>
+                <span>Security posture</span>
+                <span>Evaluation plan</span>
+                <span>Pricing approach</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer class="footer">
+        <div class="container footerInner">
+          <div class="muted">© <span id="year"></span> FraudLens</div>
+          <div class="footerLinks">
+            <a href="./faq.html">FAQ</a>
+            <a href="./terms.html">Terms</a>
+            <a href="./privacy.html">Privacy</a>
+            <a href="./sla.html">SLA</a>
+            <a href="./nda.html">NDA</a>
+            <a href="./dpa.html">DPA</a>
+            <a href="./aup.html">AUP</a>
+          </div>
+        </div>
+      </footer>
+    </main>
+
+    <script src="./main.js"></script>
+  </body>
+</html>
+

@@ -1,0 +1,5 @@
+# Shrink Cloud Run source uploads (gcloud run deploy --source)
+node_modules/
+npm-debug.log
+.env
+.env.*

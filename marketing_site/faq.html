@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FraudLens — FAQ</title>
+    <meta
+      name="description"
+      content="Frequently asked questions about FraudLens: deployment, security, compliance drafts, evidence integrity, and integrations."
+    />
+    <meta name="theme-color" content="#0b1220" />
+    <link rel="icon" href="./assets/favicon.png" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="siteHeader">
+      <div class="container headerInner">
+        <a class="brand" href="./index.html" aria-label="FraudLens Home">
+          <span class="brandMark">FL</span>
+          <span class="brandText">FraudLens</span>
+        </a>
+        <nav class="nav">
+          <a href="./index.html#product">Product</a>
+          <a href="./architecture.html">Architecture</a>
+          <a href="./index.html#compliance">Compliance</a>
+          <a href="./index.html#security">Security</a>
+          <a href="./faq.html">FAQ</a>
+          <a href="./terms.html">Legal</a>
+          <a class="navCta" href="./contact.html">Contact Sales</a>
+        </nav>
+        <button class="mobileMenuBtn" id="menuBtn" type="button" aria-label="Open menu">Menu</button>
+      </div>
+      <div class="mobileNav" id="mobileNav" aria-hidden="true">
+        <a href="./index.html#product">Product</a>
+        <a href="./architecture.html">Architecture</a>
+        <a href="./index.html#compliance">Compliance</a>
+        <a href="./index.html#security">Security</a>
+        <a href="./faq.html">FAQ</a>
+        <a href="./terms.html">Legal</a>
+        <a href="./contact.html">Contact Sales</a>
+      </div>
+    </header>
+
+    <main>
+      <section class="pageHero">
+        <div class="container">
+          <p class="chip">FAQ</p>
+          <h1>Answers for security, compliance, and deployment.</h1>
+          <p class="subhead">
+            If you want a tailored answer for your environment (banking-grade IAM, VPC, on‑prem constraints), use the
+            intake form and we’ll respond with a deployment and evaluation plan.
+          </p>
+          <div class="heroActions">
+            <a class="btn primary" href="./contact.html">Contact Sales</a>
+            <a class="btn secondary" href="./architecture.html">Architecture</a>
+            <a class="btn secondary" href="./index.html">Back to home</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="container">
+          <div class="grid2">
+            <div class="panel">
+              <h3>Quick context</h3>
+              <p>
+                FraudLens is a fraud ops + compliance drafting console: you investigate an incident, take action, generate drafts
+                (RBI/CERT‑In/executive), and preserve evidence integrity via SHA‑256.
+              </p>
+              <div class="tags">
+                <span>Draft-first</span><span>Audit-friendly</span><span>Evidence hashes</span><span>Exec dashboards</span>
+              </div>
+            </div>
+            <div class="panel">
+              <h3>Need a PDF?</h3>
+              <p>
+                We can provide regulator-aligned PDF artifacts (drafts) with storage + metadata for later verification.
+              </p>
+              <div class="code"><code>artifact.pdf → sha256: …</code></div>
+            </div>
+          </div>
+
+          <div class="faqGrid">
+            <details class="faqItem" open>
+              <summary>Is FraudLens “auto-reporting to authorities” fully autonomous?</summary>
+              <div class="faqA">
+                <p>
+                  By default, outputs are <strong>draft-first</strong> (recommended) so your compliance/legal team reviews before any
+                  external submission. We can automate drafting, internal routing, and audit logging end-to-end.
+                </p>
+              </div>
+            </details>
+
+            <details class="faqItem">
+              <summary>Can you integrate with NCRP / I4C complaint filing?</summary>
+              <div class="faqA">
+                <p>
+                  We can streamline the operator workflow (deep links + copy-ready summaries). Direct form prefill depends on the
+                  portal’s UX and legal constraints; we avoid brittle browser automation for production unless explicitly approved.
+                </p>
+              </div>
+            </details>
+
+            <details class="faqItem">
+              <summary>How do you make evidence tamper-evident?</summary>
+              <div class="faqA">
+                <p>
+                  Each generated artifact (e.g., PDF) is stored with a <strong>SHA‑256 hash</strong>. Later, you can re-download the PDF and
+                  recompute the hash to verify integrity. For stronger guarantees, pair this with immutable audit logging.
+                </p>
+              </div>
+            </details>
+
+            <details class="faqItem">
+              <summary>Where does our data live? Do you support data residency?</summary>
+              <div class="faqA">
+                <p>
+                  Yes. We can deploy per-region (e.g., India regions), use private buckets, and restrict access via service accounts and
+                  IAM policies. Residency and retention can be configured per customer policy.
+                </p>
+              </div>
+            </details>
+
+            <details class="faqItem">
+              <summary>What deployment models do you support?</summary>
+              <div class="faqA">
+                <ul>
+                  <li><strong>Cloud-native</strong>: CDN static frontend + API on Cloud Run / Kubernetes</li>
+                  <li><strong>Private</strong>: VPC, private service access, restricted egress</li>
+                  <li><strong>Hybrid</strong>: integrate with existing SIEM/SOC + data warehouse</li>
+                </ul>
+              </div>
+            </details>
+
+            <details class="faqItem">
+              <summary>Do you integrate with BI tools (Tableau/Power BI)?</summary>
+              <div class="faqA">
+                <p>
+                  Yes. A common pattern is to stream normalized incident data to a warehouse (e.g., BigQuery) and connect Tableau on top.
+                  This gives enterprise-grade dashboards without exporting manually.
+                </p>
+              </div>
+            </details>
+
+            <details class="faqItem">
+              <summary>Do you provide SLAs?</summary>
+              <div class="faqA">
+                <p>
+                  We provide a baseline SLA and can customize it for uptime, support hours, incident response SLAs, and escalation.
+                  See the <a class="inlineLink" href="./sla.html">SLA page</a>.
+                </p>
+              </div>
+            </details>
+          </div>
+        </div>
+      </section>
+
+      <footer class="footer">
+        <div class="container footerInner">
+          <div class="muted">© <span id="year"></span> FraudLens</div>
+          <div class="footerLinks">
+            <a href="./terms.html">Terms</a>
+            <a href="./privacy.html">Privacy</a>
+            <a href="./sla.html">SLA</a>
+            <a href="./nda.html">NDA</a>
+            <a href="./dpa.html">DPA</a>
+            <a href="./aup.html">AUP</a>
+            <a href="./contact.html">Contact</a>
+          </div>
+        </div>
+      </footer>
+    </main>
+
+    <script src="./main.js"></script>
+  </body>
+</html>
+

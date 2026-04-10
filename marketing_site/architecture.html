@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FraudLens — Architecture</title>
+    <meta
+      name="description"
+      content="Federated-by-design architecture: deploy inside your boundary, store evidence privately, and power governance + analytics with audit-friendly integrity."
+    />
+    <meta name="theme-color" content="#0b1220" />
+    <link rel="icon" href="./assets/favicon.png" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="siteHeader">
+      <div class="container headerInner">
+        <a class="brand" href="./index.html" aria-label="FraudLens Home">
+          <span class="brandMark">FL</span>
+          <span class="brandText">FraudLens</span>
+        </a>
+        <nav class="nav">
+          <a href="./index.html#product">Product</a>
+          <a href="./architecture.html">Architecture</a>
+          <a href="./index.html#compliance">Compliance</a>
+          <a href="./index.html#security">Security</a>
+          <a href="./faq.html">FAQ</a>
+          <a href="./terms.html">Legal</a>
+          <a class="navCta" href="./contact.html">Contact Sales</a>
+        </nav>
+        <button class="mobileMenuBtn" id="menuBtn" type="button" aria-label="Open menu">Menu</button>
+      </div>
+      <div class="mobileNav" id="mobileNav" aria-hidden="true">
+        <a href="./index.html#product">Product</a>
+        <a href="./architecture.html">Architecture</a>
+        <a href="./index.html#compliance">Compliance</a>
+        <a href="./index.html#security">Security</a>
+        <a href="./faq.html">FAQ</a>
+        <a href="./terms.html">Legal</a>
+        <a href="./contact.html">Contact Sales</a>
+      </div>
+    </header>
+
+    <main>
+      <section class="pageHero">
+        <div class="container">
+          <p class="chip">Architecture</p>
+          <h1>Federated-by-design for regulated environments.</h1>
+          <p class="subhead">
+            FraudLens is built so the <strong>runtime can live inside your boundary</strong> (VPC/on‑prem), while evidence artifacts are stored
+            privately and verified via SHA‑256. You get executive visibility without exporting sensitive raw data everywhere.
+          </p>
+          <div class="heroActions">
+            <a class="btn primary" href="./contact.html">Book a call</a>
+            <a class="btn secondary" href="./faq.html">FAQ</a>
+            <a class="btn secondary" href="./index.html">Back to home</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="container">
+          <div class="grid2">
+            <div class="panel">
+              <h3>What “federated” means here</h3>
+              <ul>
+                <li><strong>Compute close to data</strong>: detection, triage, and drafting can run in your environment.</li>
+                <li><strong>Governed outputs</strong>: reports are drafts, routed to reviewers before any external submission.</li>
+                <li><strong>Private evidence</strong>: PDFs live in a private bucket; access is API-mediated.</li>
+                <li><strong>Verifiable integrity</strong>: each artifact gets a SHA‑256 hash for later verification.</li>
+              </ul>
+            </div>
+            <div class="panel">
+              <h3>What you get (exec + IT)</h3>
+              <ul>
+                <li><strong>IT/SOC</strong>: workflows, audit logs, evidence chain, incident timelines.</li>
+                <li><strong>Compliance</strong>: regulator-aligned drafts, routing, and review controls.</li>
+                <li><strong>Leadership</strong>: KPI dashboards + trends + reporting pipeline visibility.</li>
+              </ul>
+            </div>
+          </div>
+
+          <figure class="flFigure">
+            <div class="flFigureTop">
+              <div>
+                <p class="flEyebrow">Reference architecture</p>
+                <h2 style="margin-bottom: 6px">Runtime inside your boundary</h2>
+                <p class="muted" style="margin: 0">
+                  Deploy FraudLens where your constraints demand it. Only governed signals and artifacts move across boundaries.
+                </p>
+              </div>
+              <div class="tags">
+                <span>VPC / on‑prem</span><span>RBAC</span><span>Private evidence</span><span>Audit-ready</span>
+              </div>
+            </div>
+            <div class="flDiagram">
+              <img
+                src="./assets/federated-architecture.svg"
+                alt="Federated architecture diagram showing bank boundary, control plane, and evidence+analytics"
+                loading="lazy"
+              />
+            </div>
+          </figure>
+
+          <figure class="flFigure">
+            <div class="flFigureTop">
+              <div>
+                <p class="flEyebrow">Compliance workflow</p>
+                <h2 style="margin-bottom: 6px">Draft → review → evidence</h2>
+                <p class="muted" style="margin: 0">
+                  The point is speed and consistency: generate drafts quickly, route to the right reviewers, then preserve the evidence.
+                </p>
+              </div>
+              <div class="tags">
+                <span>RBI/CERT‑In drafts</span><span>Approval gates</span><span>PDF artifacts</span>
+              </div>
+            </div>
+            <div class="flDiagram">
+              <img
+                src="./assets/compliance-flow.svg"
+                alt="Compliance drafting workflow diagram: Incident → Scribe → Review → Evidence → File"
+                loading="lazy"
+              />
+            </div>
+          </figure>
+
+          <div class="grid3" style="margin-top: 14px">
+            <div class="panel">
+              <h3>Evidence integrity</h3>
+              <p>
+                Every stored artifact can be verified later by recomputing SHA‑256. This supports dispute handling, audits, and post‑incident reviews.
+              </p>
+            </div>
+            <div class="panel">
+              <h3>Enterprise search</h3>
+              <p>
+                Use an assistant over governed metadata + excerpts (RAG) for fast answers with citations back to evidence artifacts.
+              </p>
+            </div>
+            <div class="panel">
+              <h3>BI-ready analytics</h3>
+              <p>
+                Normalize incident facts into a warehouse (e.g., BigQuery) and connect Tableau/Looker/PowerBI—no manual exports.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer class="footer">
+        <div class="container footerInner">
+          <div class="muted">© <span id="year"></span> FraudLens</div>
+          <div class="footerLinks">
+            <a href="./architecture.html">Architecture</a>
+            <a href="./faq.html">FAQ</a>
+            <a href="./terms.html">Terms</a>
+            <a href="./privacy.html">Privacy</a>
+            <a href="./sla.html">SLA</a>
+            <a href="./nda.html">NDA</a>
+            <a href="./dpa.html">DPA</a>
+            <a href="./aup.html">AUP</a>
+            <a href="./contact.html">Contact</a>
+          </div>
+        </div>
+      </footer>
+    </main>
+
+    <script src="./main.js"></script>
+  </body>
+</html>
+

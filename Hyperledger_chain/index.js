@@ -25,6 +25,12 @@ function safeObjectPart(input, maxLen = 120) {
     .slice(0, maxLen);
 }
 
+function normHex(s) {
+  return String(s || '')
+    .trim()
+    .toLowerCase();
+}
+
 function guessContentTypeFromPath(objectPath) {
   const p = String(objectPath || '').toLowerCase();
   if (p.endsWith('.pdf')) return 'application/pdf';
@@ -290,6 +296,36 @@ app.get('/api/chronos/incident/:incidentId', (req, res) => {
   const { incidentId } = req.params;
   const history = events.filter(e => e.incidentId === incidentId);
   res.json({ incidentId, events: history });
+});
+
+// Verify hash is recorded on a prior decision (no GCS round-trip). Use /api/docs/meta when objectPath is known.
+app.get('/api/chronos/verify-doc', (req, res) => {
+  const incidentId = String(req.query.incidentId || '').trim();
+  const sha256Expected = normHex(req.query.sha256);
+  if (!incidentId || !sha256Expected) {
+    return res.status(400).json({ error: 'incidentId and sha256 query params are required' });
+  }
+  const relevant = events.filter(e => e.incidentId === incidentId);
+  for (const e of relevant) {
+    const reps = e.reports;
+    if (!Array.isArray(reps)) continue;
+    for (const r of reps) {
+      const h = normHex(r.sha256);
+      if (h && h === sha256Expected) {
+        return res.json({
+          ok: true,
+          verified: true,
+          source: 'ledger',
+          incidentId,
+          objectPath: r.objectPath || null,
+          reportType: r.reportType || null
+        });
+      }
+    }
+  }
+  return res.status(404).json({
+    error: 'No ledger decision for this incident contains that SHA-256. If the file exists in GCS, pass objectPath and use storage verification.'
+  });
 });
 
 app.listen(port, () => {

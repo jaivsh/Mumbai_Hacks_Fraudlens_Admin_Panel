@@ -1,0 +1,199 @@
+openapi: 3.0.3
+info:
+  title: FraudLens Assistant API
+  description: |
+    LLM-backed assistant for fraud operations: chat with citations, and optional ingestion for RAG.
+
+    **Auth:** `Authorization: Bearer <Firebase ID token>` from the same Firebase project as the dashboard,
+    unless the deployment sets `REQUIRE_AUTH=false` (development only).
+
+    **Not streaming:** responses are JSON per request (no WebSocket/SSE in this version).
+  version: 1.0.0
+  contact:
+    name: FraudLens
+
+servers:
+  - url: https://YOUR-ASSISTANT-CLOUD-RUN-URL
+    description: Cloud Run (replace with your service URL)
+
+tags:
+  - name: Health
+  - name: Chat
+  - name: Ingest
+
+paths:
+  /api/assistant/health:
+    get:
+      tags: [Health]
+      summary: Health and configuration surface (non-secret)
+      operationId: assistantHealth
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  /api/assistant/chat:
+    post:
+      tags: [Chat]
+      summary: Ask a question (incident-scoped or global search)
+      operationId: assistantChat
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatRequest'
+      responses:
+        '200':
+          description: Answer and citations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatResponse'
+        '400':
+          description: Bad request
+        '500':
+          description: Server error
+
+  /api/assistant/ingest/report:
+    post:
+      tags: [Ingest]
+      summary: Ingest report text into BigQuery RAG chunks (and artifact metadata)
+      operationId: assistantIngestReport
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IngestReportRequest'
+      responses:
+        '201':
+          description: Created
+        '400':
+          description: Bad request
+        '500':
+          description: Server error
+
+  /api/assistant/ingest/facts:
+    post:
+      tags: [Ingest]
+      summary: Upsert structured incident facts into BigQuery
+      operationId: assistantIngestFacts
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IngestFactsRequest'
+      responses:
+        '201':
+          description: Created
+        '400':
+          description: Bad request
+        '500':
+          description: Server error
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Firebase Auth ID token (same project as FIREBASE_PROJECT_ID on the service)
+
+  schemas:
+    ChatRequest:
+      type: object
+      required: [question]
+      properties:
+        question:
+          type: string
+        mode:
+          type: string
+          enum: [incident, global]
+          default: incident
+        incidentId:
+          type: string
+          nullable: true
+        providedContext:
+          type: object
+          nullable: true
+          description: Optional client-provided incident + recent reports (dashboard sends this)
+          additionalProperties: true
+        history:
+          type: array
+          description: Prior Standard chat turns for multi-turn replies (role user|assistant, content string); max ~20 items server-side
+          items:
+            type: object
+            required: [role, content]
+            properties:
+              role:
+                type: string
+                enum: [user, assistant]
+              content:
+                type: string
+        audience:
+          type: string
+          enum: [analyst, exec]
+          default: analyst
+          description: Exec = shorter, plainer; analyst = structured bullets, still plain language
+
+    ChatResponse:
+      type: object
+      properties:
+        answer:
+          type: string
+        citations:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+
+    IngestReportRequest:
+      type: object
+      required: [incidentId, reportType, content]
+      properties:
+        incidentId:
+          type: string
+        reportType:
+          type: string
+        reportId:
+          type: string
+          nullable: true
+        objectPath:
+          type: string
+          nullable: true
+        gcsPath:
+          type: string
+          nullable: true
+        sha256:
+          type: string
+          nullable: true
+        contentType:
+          type: string
+          nullable: true
+        content:
+          type: string
+        source:
+          type: string
+          nullable: true
+
+    IngestFactsRequest:
+      type: object
+      required: [incidentId, facts]
+      properties:
+        incidentId:
+          type: string
+        facts:
+          type: object
+          additionalProperties: true

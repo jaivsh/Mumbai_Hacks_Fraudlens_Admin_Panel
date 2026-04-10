@@ -17,6 +17,7 @@ import {
   REPORT_SUBJECTS,
   AUTO_REPORT_TYPES
 } from './reportFormats';
+import { ingestReportToAssistant } from '../../services/assistantService';
 
 function buildSubject(reportType, incidentId) {
   const template = REPORT_SUBJECTS[reportType];
@@ -119,6 +120,23 @@ export async function generateAndSaveReport(db, incidentId, reportType) {
             gcsSha256: data.sha256,
             gcsUploadedAt: serverTimestamp()
           });
+
+          // Index for enterprise search (BigQuery RAG) via Assistant API (non-fatal).
+          try {
+            await ingestReportToAssistant({
+              incidentId,
+              reportType,
+              reportId: docRef.id,
+              objectPath: data.objectPath,
+              gcsPath: data.gcsPath,
+              sha256: data.sha256,
+              contentType: 'application/pdf',
+              content: reportText,
+              source: 'firestore_report'
+            });
+          } catch (e) {
+            console.error('Assistant ingest failed (non-fatal)', e);
+          }
         }
       }
     }

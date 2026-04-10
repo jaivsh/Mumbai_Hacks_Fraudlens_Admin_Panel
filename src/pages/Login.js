@@ -105,6 +105,30 @@ const demoLabelStyle = {
   margin: '0 0 12px 0'
 };
 
+const demoHintStyle = {
+  fontSize: 12,
+  color: '#9ca3af',
+  margin: '0 0 12px 0',
+  lineHeight: 1.45
+};
+
+const demoLegacyStyle = {
+  fontSize: 12,
+  color: '#9ca3af',
+  margin: '12px 0 0 0',
+  textAlign: 'center'
+};
+
+const demoLegacyBtnStyle = {
+  background: 'none',
+  border: 'none',
+  color: '#6b7280',
+  textDecoration: 'underline',
+  cursor: 'pointer',
+  fontSize: 12,
+  padding: 0
+};
+
 const demoButtonsStyle = {
   display: 'flex',
   flexDirection: 'column',
@@ -122,13 +146,31 @@ const demoButtonStyle = {
   cursor: 'pointer'
 };
 
+/** One-click demo: real Firebase sign-in so ID tokens work (e.g. Assistant Live). Env is baked at build/start time. */
+function getDemoCredentials(role) {
+  const itEmail = (process.env.REACT_APP_DEMO_IT_EMAIL || '').trim();
+  const itPassword = (process.env.REACT_APP_DEMO_IT_PASSWORD || '').trim();
+  const execEmail = (process.env.REACT_APP_DEMO_EXEC_EMAIL || '').trim();
+  const execPassword = (process.env.REACT_APP_DEMO_EXEC_PASSWORD || '').trim();
+  if (role === 'it') {
+    if (!itEmail || !itPassword) return { ok: false, reason: 'missing_it' };
+    return { ok: true, email: itEmail, password: itPassword };
+  }
+  if (!execEmail || !execPassword) return { ok: false, reason: 'missing_exec' };
+  return { ok: true, email: execEmail, password: execPassword };
+}
+
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [demoRoleLoading, setDemoRoleLoading] = useState(null);
   const navigate = useNavigate();
   const { user, authLoading, isApproved, isPending, isIT, isExec, setDemoSession } = useAuth();
+
+  const itDemoReady = getDemoCredentials('it').ok;
+  const execDemoReady = getDemoCredentials('exec').ok;
 
   useEffect(() => {
     if (authLoading) return;
@@ -155,6 +197,38 @@ export default function Login() {
         err.message || 'Login failed.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDemoFirebaseSignIn = async (role) => {
+    const creds = getDemoCredentials(role);
+    setError('');
+    if (!creds.ok) {
+      if (creds.reason === 'missing_it') {
+        setError(
+          'Demo IT: set REACT_APP_DEMO_IT_EMAIL and REACT_APP_DEMO_IT_PASSWORD in .env, restart npm start, then create that user in Firebase Authentication and admin_users (approved, role it_admin or it_analyst).'
+        );
+      } else {
+        setError(
+          'Demo Exec: set REACT_APP_DEMO_EXEC_EMAIL and REACT_APP_DEMO_EXEC_PASSWORD in .env, restart npm start, then create that user in Firebase + admin_users (approved, role exec).'
+        );
+      }
+      return;
+    }
+    setDemoRoleLoading(role);
+    try {
+      await signInWithEmailAndPassword(auth, creds.email, creds.password);
+      navigate(role === 'exec' ? '/exec' : '/', { replace: true });
+    } catch (err) {
+      setError(
+        err.code === 'auth/user-not-found'
+          ? 'Demo user not found in Firebase Authentication.'
+          : err.code === 'auth/wrong-password'
+            ? 'Demo password does not match the Firebase user.'
+            : err.message || 'Demo sign-in failed.'
+      );
+    } finally {
+      setDemoRoleLoading(null);
     }
   };
 
@@ -187,7 +261,7 @@ export default function Login() {
             autoComplete="current-password"
           />
           {error && <div style={errorStyle}>{error}</div>}
-          <button type="submit" style={buttonStyle} disabled={loading}>
+          <button type="submit" style={buttonStyle} disabled={loading || demoRoleLoading}>
             {loading ? 'Signing in...' : 'Sign in'}
           </button>
         </form>
@@ -197,29 +271,68 @@ export default function Login() {
         </p>
 
         <div style={demoDivStyle}>
-          <p style={demoLabelStyle}>Just viewing? Skip login and see the app:</p>
+          <p style={demoLabelStyle}>Demo: sign in with configured test accounts (real Firebase session — Assistant Live works).</p>
+          <p style={demoHintStyle}>
+            Set <code style={{ fontSize: 11 }}>REACT_APP_DEMO_IT_EMAIL</code> /{' '}
+            <code style={{ fontSize: 11 }}>REACT_APP_DEMO_IT_PASSWORD</code> and exec variants in{' '}
+            <code style={{ fontSize: 11 }}>.env</code>, then restart <code style={{ fontSize: 11 }}>npm start</code>. See{' '}
+            <code style={{ fontSize: 11 }}>assistant_api/DEMO_TEST_ACCOUNTS.md</code>.
+          </p>
           <div style={demoButtonsStyle}>
             <button
               type="button"
-              onClick={() => {
-                setDemoSession('it');
-                navigate('/', { replace: true });
+              onClick={() => handleDemoFirebaseSignIn('it')}
+              disabled={loading || demoRoleLoading || !itDemoReady}
+              style={{
+                ...demoButtonStyle,
+                opacity: itDemoReady ? 1 : 0.45,
+                cursor: itDemoReady && !demoRoleLoading ? 'pointer' : 'not-allowed'
               }}
-              style={demoButtonStyle}
+              title={!itDemoReady ? 'Configure REACT_APP_DEMO_IT_* in .env' : undefined}
             >
-              View as IT Admin
+              {demoRoleLoading === 'it' ? 'Signing in…' : 'Demo — IT Admin'}
             </button>
             <button
               type="button"
+              onClick={() => handleDemoFirebaseSignIn('exec')}
+              disabled={loading || demoRoleLoading || !execDemoReady}
+              style={{
+                ...demoButtonStyle,
+                backgroundColor: '#7c3aed',
+                opacity: execDemoReady ? 1 : 0.45,
+                cursor: execDemoReady && !demoRoleLoading ? 'pointer' : 'not-allowed'
+              }}
+              title={!execDemoReady ? 'Configure REACT_APP_DEMO_EXEC_* in .env' : undefined}
+            >
+              {demoRoleLoading === 'exec' ? 'Signing in…' : 'Demo — Exec'}
+            </button>
+          </div>
+          <p style={demoLegacyStyle}>
+            <button
+              type="button"
+              style={demoLegacyBtnStyle}
               onClick={() => {
+                setError('');
+                setDemoSession('it');
+                navigate('/', { replace: true });
+              }}
+            >
+              Offline preview (no Firebase)
+            </button>
+            {' · '}
+            <button
+              type="button"
+              style={demoLegacyBtnStyle}
+              onClick={() => {
+                setError('');
                 setDemoSession('exec');
                 navigate('/exec', { replace: true });
               }}
-              style={{ ...demoButtonStyle, backgroundColor: '#7c3aed' }}
             >
-              View as Exec
+              Exec offline preview
             </button>
-          </div>
+            <span style={{ display: 'block', marginTop: 6 }}>No ID token — Assistant Live stays disabled.</span>
+          </p>
         </div>
       </div>
     </div>

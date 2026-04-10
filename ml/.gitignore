@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+*.pkl.prev
+*.pkl.upload_tmp
+federated/demo_splits/
