@@ -17,6 +17,9 @@ Hyperledger_chain/node_modules
 .env
 Hyperledger_chain/.env
 
+# Cloud Run deploy env (contains secrets; generate from .env for gcloud --build-env-vars-file)
+deploy/admin_panel_cloud_run.env.yaml
+
 # misc
 .DS_Store
 .env.local

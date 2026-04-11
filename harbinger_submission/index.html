@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FraudLens — HaRBInger 2025 Solution Submission</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0c1222;
+      --bg-card: #141c2f;
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #e8edf7;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent2: #a78bfa;
+      --success: #34d399;
+      --warn: #fbbf24;
+      --radius: 12px;
+      --maxw: 920px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "DM Sans", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.55;
+      font-size: 15px;
+    }
+    .wrap { max-width: var(--maxw); margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+    header {
+      text-align: center;
+      padding: 2.5rem 0 2rem;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 2rem;
+    }
+    .badge {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      padding: 0.35rem 0.75rem;
+      border-radius: 999px;
+      margin-bottom: 1rem;
+    }
+    h1 {
+      font-size: clamp(1.75rem, 4vw, 2.35rem);
+      font-weight: 700;
+      margin: 0 0 0.5rem;
+      letter-spacing: -0.02em;
+    }
+    .subtitle { color: var(--muted); max-width: 36rem; margin: 0 auto; font-size: 1.05rem; }
+    .intro-lead {
+      max-width: 34rem;
+      margin: 1.25rem auto 0;
+      font-size: 0.95rem;
+      font-weight: 500;
+      color: #cbd5e1;
+    }
+    h2 {
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin: 2.5rem 0 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    h2 .num {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--accent2);
+    }
+    h3 { font-size: 1rem; margin: 1.5rem 0 0.75rem; color: #cbd5e1; }
+    p.note {
+      font-size: 0.88rem;
+      color: var(--muted);
+      border-left: 3px solid var(--accent);
+      padding-left: 0.85rem;
+      margin: 0.75rem 0;
+    }
+    .grid {
+      display: grid;
+      gap: 0.75rem;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    }
+    a.card {
+      display: block;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.15rem;
+      text-decoration: none;
+      color: var(--text);
+      transition: border-color 0.15s, transform 0.15s;
+    }
+    a.card:hover {
+      border-color: rgba(56, 189, 248, 0.45);
+      transform: translateY(-1px);
+    }
+    a.card strong { display: block; font-size: 0.95rem; margin-bottom: 0.35rem; }
+    a.card span { font-size: 0.8rem; color: var(--muted); word-break: break-all; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+      background: var(--bg-card);
+      border-radius: var(--radius);
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    th, td { padding: 0.65rem 0.85rem; text-align: left; border-bottom: 1px solid var(--border); vertical-align: top; }
+    th { background: rgba(0, 0, 0, 0.25); color: #cbd5e1; font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; }
+    tr:last-child td { border-bottom: none; }
+    code, .mono {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 0.82rem;
+      background: rgba(0, 0, 0, 0.35);
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      word-break: break-all;
+    }
+    .url-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.5rem;
+      margin: 0.35rem 0;
+    }
+    .url-row code { flex: 1; min-width: 200px; }
+    button.copy {
+      font-family: inherit;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.35rem 0.65rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text);
+      cursor: pointer;
+    }
+    button.copy:hover { background: rgba(56, 189, 248, 0.15); border-color: var(--accent); }
+    .pill { display: inline-block; font-size: 0.7rem; font-weight: 600; padding: 0.2rem 0.5rem; border-radius: 4px; margin-right: 0.35rem; }
+    .pill.get { background: rgba(52, 211, 153, 0.2); color: var(--success); }
+    .pill.post { background: rgba(56, 189, 248, 0.2); color: var(--accent); }
+    .pill.ws { background: rgba(167, 139, 250, 0.2); color: var(--accent2); }
+    footer {
+      margin-top: 3rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.85rem;
+      color: var(--muted);
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="badge">HaRBInger 2025 · Innovation for Transformation</div>
+      <h1>FraudLens</h1>
+      <p class="subtitle">Enhancing Trust — fraud prevention, data verification, and digital identity. Solution submission: live deployments, mobile app, and API reference.</p>
+      <p class="intro-lead">Please find all of our applications and API endpoint links consolidated on this page for quick reference.</p>
+    </header>
+
+    <h2><span class="num">01</span> Deployments &amp; app</h2>
+    <div class="grid">
+      <a class="card" href="https://fraudlens-admin-panel-875422601666.asia-south1.run.app" target="_blank" rel="noopener noreferrer">
+        <strong>Web admin panel (Cloud Run)</strong>
+        <span>https://fraudlens-admin-panel-875422601666.asia-south1.run.app</span>
+      </a>
+      <a class="card" href="https://drive.google.com/file/d/1NdS2dK97oAJeRx13_sE7YDFlvzelKO7O/view?usp=sharing" target="_blank" rel="noopener noreferrer">
+        <strong>Android app (APK)</strong>
+        <span>Google Drive — FraudLens.apk</span>
+      </a>
+    </div>
+
+    <h2><span class="num">02</span> Fraud scoring API (FastAPI)</h2>
+    <p class="note">Supervised transaction scoring. Call from a trusted backend; model bundle is loaded from GCS in production.</p>
+    <p><strong>Base URL</strong></p>
+    <div class="url-row">
+      <code id="fraud-base">https://fraudlens-fraud-api-875422601666.asia-south1.run.app</code>
+      <button type="button" class="copy" data-copy="fraud-base">Copy</button>
+    </div>
+    <table>
+      <thead><tr><th>Method</th><th>Path</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td><span class="pill post">POST</span></td><td><code>/predict</code></td><td>Single transaction → fraud label, probability, risk band</td></tr>
+        <tr><td><span class="pill post">POST</span></td><td><code>/predict_batch</code></td><td>Batch scoring</td></tr>
+        <tr><td><span class="pill get">GET</span></td><td><code>/health</code></td><td>Liveness</td></tr>
+        <tr><td><span class="pill get">GET</span></td><td><code>/model/info</code></td><td>Model metadata / display URI</td></tr>
+        <tr><td><span class="pill post">POST</span></td><td><code>/train/upload</code></td><td>Optional secured retrain (when enabled; API key)</td></tr>
+      </tbody>
+    </table>
+    <p><strong>OpenAPI</strong> (if exposed by deployment): <code>{BASE}/docs</code>, <code>{BASE}/openapi.json</code></p>
+
+    <h2><span class="num">03</span> FraudLens Assistant API (AI agent)</h2>
+    <p class="note">Chat + RAG ingest. Auth: <code>Authorization: Bearer &lt;Firebase ID token&gt;</code> unless the deployment disables auth for development.</p>
+    <p><strong>Base URL</strong></p>
+    <div class="url-row">
+      <code id="assistant-base">https://fraudlens-assistant-api-875422601666.asia-south1.run.app</code>
+      <button type="button" class="copy" data-copy="assistant-base">Copy</button>
+    </div>
+    <table>
+      <thead><tr><th>Method</th><th>Path</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td><span class="pill get">GET</span></td><td><code>/api/assistant/health</code></td><td>Health / non-secret config</td></tr>
+        <tr><td><span class="pill post">POST</span></td><td><code>/api/assistant/chat</code></td><td>Ask question; optional history, audience (analyst | exec)</td></tr>
+        <tr><td><span class="pill post">POST</span></td><td><code>/api/assistant/ingest/report</code></td><td>Ingest report text for RAG</td></tr>
+        <tr><td><span class="pill post">POST</span></td><td><code>/api/assistant/ingest/facts</code></td><td>Upsert incident facts</td></tr>
+        <tr><td><span class="pill ws">WS</span></td><td><code>wss://…/api/assistant/live</code></td><td>Bidirectional proxy to Vertex Gemini Live (voice/text). First frame: Firebase token JSON <code>{"flAuth":"…"}</code></td></tr>
+      </tbody>
+    </table>
+    <p><strong>Live WebSocket (production)</strong></p>
+    <div class="url-row">
+      <code id="assistant-ws">wss://fraudlens-assistant-api-875422601666.asia-south1.run.app/api/assistant/live</code>
+      <button type="button" class="copy" data-copy="assistant-ws">Copy</button>
+    </div>
+
+    <h2><span class="num">04</span> Scribe API (compliance reports)</h2>
+    <p class="note">Gemini-backed report generation (RBI, CERT-In, executive, etc.). Bearer token same Firebase project as dashboard when auth is on.</p>
+    <p><strong>Base URL</strong></p>
+    <div class="url-row">
+      <code id="scribe-base">https://fraudlens-scribe-api-875422601666.asia-south1.run.app</code>
+      <button type="button" class="copy" data-copy="scribe-base">Copy</button>
+    </div>
+    <table>
+      <thead><tr><th>Method</th><th>Path</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td><span class="pill get">GET</span></td><td><code>/api/scribe/health</code></td><td>Health</td></tr>
+        <tr><td><span class="pill get">GET</span></td><td><code>/api/scribe/report-types</code></td><td>List supported report type keys</td></tr>
+        <tr><td><span class="pill post">POST</span></td><td><code>/api/scribe/generate</code></td><td>Generate one report</td></tr>
+        <tr><td><span class="pill post">POST</span></td><td><code>/api/scribe/generate/batch</code></td><td>Generate multiple reports (e.g. RBI + CERT-In + executive)</td></tr>
+      </tbody>
+    </table>
+
+    <h2><span class="num">05</span> Chronos (audit &amp; evidence)</h2>
+    <p class="note">Replace the base URL below with your deployed Chronos (Cloud Run or VM) — the admin panel uses <code>REACT_APP_CHRONOS_API</code> / <code>REACT_APP_CHRONOS_API_URL</code> at build time.</p>
+    <p><strong>Base URL (edit if yours differs)</strong></p>
+    <div class="url-row">
+      <code id="chronos-base" contenteditable="true">https://YOUR-CHRONOS-SERVICE.run.app</code>
+      <button type="button" class="copy" data-copy="chronos-base">Copy</button>
+    </div>
+    <table>
+      <thead><tr><th>Method</th><th>Path</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td><span class="pill get">GET</span></td><td><code>/api/chronos/health</code></td><td>Health</td></tr>
+        <tr><td><span class="pill post">POST</span></td><td><code>/api/chronos/decision</code></td><td>Record fraud decision + linked report hashes</td></tr>
+        <tr><td><span class="pill get">GET</span></td><td><code>/api/chronos/incident/:incidentId</code></td><td>Incident decision history</td></tr>
+        <tr><td><span class="pill get">GET</span></td><td><code>/api/chronos/verify-doc?incidentId=…&amp;sha256=…</code></td><td>Verify hash on ledger</td></tr>
+        <tr><td><span class="pill post">POST</span></td><td><code>/api/docs/upload</code></td><td>Upload report PDF to GCS; returns <code>sha256</code>, <code>gcsPath</code></td></tr>
+        <tr><td><span class="pill get">GET</span></td><td><code>/api/docs/meta?objectPath=…</code></td><td>Object metadata + hash</td></tr>
+        <tr><td><span class="pill get">GET</span></td><td><code>/api/docs/file?objectPath=…</code></td><td>Stream file (private bucket)</td></tr>
+        <tr><td><span class="pill get">GET</span></td><td><code>/api/docs/read?objectPath=…</code></td><td>Read text or PDF viewer URL</td></tr>
+      </tbody>
+    </table>
+
+    <h2><span class="num">06</span> FraudLens Blackbox APIs (Gemini — SMS &amp; live vishing)</h2>
+    <p class="note">Separate FastAPI service for scam / vishing-style analysis. Not the same as the core fraud transaction scorer.</p>
+    <p><strong>Base URL</strong></p>
+    <div class="url-row">
+      <code id="blackbox-base">https://fraudlens-blackbox-875422601666.us-central1.run.app</code>
+      <button type="button" class="copy" data-copy="blackbox-base">Copy</button>
+    </div>
+    <table>
+      <thead><tr><th>Method</th><th>Path</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td><span class="pill get">GET</span></td><td><code>/health</code></td><td>Liveness → <code>{"status":"ok"}</code></td></tr>
+        <tr><td><span class="pill post">POST</span></td><td><code>/sms/analyze</code></td><td>JSON body: <code>sender_id</code>, <code>message</code> → <code>is_scam</code>, <code>confidence_score</code>, <code>reasoning</code>, <code>recommendation</code></td></tr>
+        <tr><td><span class="pill ws">WS</span></td><td><code>/vishing/ws</code></td><td>Live detection: base64 PCM and/or text; server streams <code>status</code>, <code>transcript</code>, <code>fraud_analysis</code>, <code>error</code></td></tr>
+      </tbody>
+    </table>
+    <p><strong>Interactive docs</strong></p>
+    <ul style="margin: 0.5rem 0; padding-left: 1.2rem; color: var(--muted);">
+      <li><a href="https://fraudlens-blackbox-875422601666.us-central1.run.app/docs" target="_blank" rel="noopener noreferrer">Swagger UI</a> — <code>/docs</code></li>
+      <li><a href="https://fraudlens-blackbox-875422601666.us-central1.run.app/openapi.json" target="_blank" rel="noopener noreferrer">OpenAPI JSON</a> — <code>/openapi.json</code></li>
+    </ul>
+    <h3>WebSocket URL (TLS)</h3>
+    <div class="url-row">
+      <code id="blackbox-ws">wss://fraudlens-blackbox-875422601666.us-central1.run.app/vishing/ws</code>
+      <button type="button" class="copy" data-copy="blackbox-ws">Copy</button>
+    </div>
+    <h3>Client → server (JSON text frames)</h3>
+    <table>
+      <thead><tr><th>type</th><th>Fields</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td><code>audio</code></td><td><code>data_b64</code> (required), <code>mime_type</code> (optional, default <code>audio/pcm</code>)</td><td>PCM chunk, base64</td></tr>
+        <tr><td><code>text</code></td><td><code>text</code> (required)</td><td>Text for the model</td></tr>
+        <tr><td><code>disconnect</code></td><td>—</td><td>End session</td></tr>
+      </tbody>
+    </table>
+    <h3>Server → client</h3>
+    <table>
+      <thead><tr><th>event</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td><code>status</code></td><td>Status line (<code>message</code>)</td></tr>
+        <tr><td><code>transcript</code></td><td><code>text</code>, <code>is_user</code></td></tr>
+        <tr><td><code>fraud_analysis</code></td><td><code>analysis</code> (same shape as SMS response)</td></tr>
+        <tr><td><code>error</code></td><td><code>message</code></td></tr>
+      </tbody>
+    </table>
+
+    <h2><span class="num">07</span> Deepfake &amp; synthetic-media APIs (platform)</h2>
+    <p class="note">Dedicated <strong>liveness / deepfake / presentation-attack</strong> endpoints are part of the FraudLens <strong>extended security suite</strong> (mobile SDK &amp; partner integrations). They are <strong>not</strong> served by the Blackbox service above (Blackbox = SMS + live vishing WebSocket).</p>
+    <p>Illustrative REST shapes for integration specs (base URL issued per deployment / SDK):</p>
+    <table>
+      <thead><tr><th>Method</th><th>Example path</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td><span class="pill post">POST</span></td><td><code>/v1/integrity/liveness/session</code></td><td>Start or continue liveness challenge; returns session id + status</td></tr>
+        <tr><td><span class="pill post">POST</span></td><td><code>/v1/integrity/media/analyze</code></td><td>Short-lived upload or signed URL → deepfake / synthetic-media risk score + audit id</td></tr>
+        <tr><td><span class="pill post">POST</span></td><td><code>/v1/integrity/voice/verify</code></td><td>Optional voice anti-spoofing (partner pipeline)</td></tr>
+      </tbody>
+    </table>
+    <p class="note">Wire these to the same policy and audit spine as Chronos (decision + hash) when enterprises require evidence packs.</p>
+
+    <h2><span class="num">08</span> Quick curl — Blackbox SMS</h2>
+    <pre style="background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; overflow: auto; font-size: 0.78rem;"><code>curl -s -X POST "https://fraudlens-blackbox-875422601666.us-central1.run.app/sms/analyze" \
+  -H "Content-Type: application/json" \
+  -d '{"sender_id":"VM-HDFCBK","message":"Your account blocked. Click http://bit.ly/x to verify."}'</code></pre>
+
+    <footer>
+      FraudLens · HaRBInger 2025 · Enhancing Trust<br />
+      Static submission page — host on any static file server or zip with your entry.
+    </footer>
+  </div>
+  <script>
+    document.querySelectorAll("button.copy").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var id = btn.getAttribute("data-copy");
+        var el = document.getElementById(id);
+        var text = el ? el.textContent.trim() : "";
+        if (!text) return;
+        navigator.clipboard.writeText(text).then(function () {
+          var o = btn.textContent;
+          btn.textContent = "Copied";
+          setTimeout(function () { btn.textContent = o; }, 1500);
+        });
+      });
+    });
+  </script>
+</body>
+</html>

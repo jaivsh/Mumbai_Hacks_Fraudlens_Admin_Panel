@@ -2,6 +2,15 @@
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
+## FraudLens admin dashboard — environment variables
+
+The UI is a **Create React App** bundle: every `REACT_APP_*` variable is **inlined at `npm run build` time**. It is **not** read from Cloud Run “runtime” environment variables after deploy. If you deploy without setting them during the build, features break (for example **Scribe** needs `REACT_APP_GEMINI_API_KEY`, **Assistant** needs `REACT_APP_ASSISTANT_API`, **Fraud API playground** needs `REACT_APP_FRAUD_API_URL`, **Chronos / stored reports** need `REACT_APP_CHRONOS_API` or `REACT_APP_CHRONOS_API_URL`).
+
+- **Local:** copy [`.env.example`](./.env.example) to `.env`, fill values, then `npm start` or `npm run build`.
+- **Docker / Cloud Run:** build with [Dockerfile.admin-panel](./Dockerfile.admin-panel) and pass the same variables as `--build-arg`, or use [cloudbuild.admin-panel.yaml](./cloudbuild.admin-panel.yaml) with Cloud Build **substitutions** (recommended: store secrets in Secret Manager and map them into substitutions in your trigger).
+
+Code references for required vars: `src/firebase.js`, `src/components/scribe/scribeService.js`, `src/services/*.js`, `src/components/assistant/ChatWidget.js`, `src/pages/Login.js`.
+
 ## Available Scripts
 
 In the project directory, you can run:

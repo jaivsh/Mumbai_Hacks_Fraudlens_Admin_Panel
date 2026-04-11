@@ -60,6 +60,15 @@ const VERTEX_GEMINI_FALLBACKS = [
   'gemini-2.0-flash-lite-001'
 ];
 
+/** Same stack as local CRA Scribe: Google AI Studio / Generative Language API + API key (not Vertex IAM). */
+const GEMINI_API_KEY = (
+  process.env.GEMINI_API_KEY ||
+  process.env.GOOGLE_AI_STUDIO_API_KEY ||
+  ''
+).trim();
+/** e.g. models/gemini-2.5-flash — must include `models/` prefix for v1beta (matches REACT_APP_GEMINI_MODEL). */
+const GEMINI_MODEL = (process.env.GEMINI_MODEL || 'models/gemini-2.5-flash').trim();
+
 const CHRONOS_API_BASE = (process.env.CHRONOS_API_BASE || '').trim().replace(/\/$/, '');
 const ASSISTANT_API_BASE = (process.env.ASSISTANT_API_BASE || '').trim().replace(/\/$/, '');
 
@@ -124,7 +133,35 @@ async function verifyFirebaseIdToken(req) {
   }
 }
 
-async function generateReportText(prompt) {
+async function generateReportTextWithGeminiApiKey(prompt) {
+  const modelId = GEMINI_MODEL.startsWith('models/') ? GEMINI_MODEL : `models/${GEMINI_MODEL}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/${modelId}:generateContent?key=${GEMINI_API_KEY}`;
+  const geminiResponse = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0.35,
+        maxOutputTokens: 8192
+      }
+    })
+  });
+  if (!geminiResponse.ok) {
+    const errorBody = await geminiResponse.json().catch(() => ({}));
+    const msg = errorBody.error?.message || `Gemini API HTTP ${geminiResponse.status}`;
+    throw new Error(msg);
+  }
+  const result = await geminiResponse.json();
+  const text =
+    result.candidates?.[0]?.content?.parts?.map((p) => p.text || '').join('') ||
+    'Gemini response did not contain text output.';
+  const trimmed = String(text || '').trim();
+  if (!trimmed) throw new Error('Gemini API returned empty output.');
+  return trimmed;
+}
+
+async function generateReportTextWithVertex(prompt) {
   if (!vertex) throw new Error('Vertex AI not configured (VERTEX_PROJECT_ID missing).');
 
   const modelCandidates = [...new Set([...VERTEX_GEMINI_MODELS, VERTEX_GEMINI_MODEL, ...VERTEX_GEMINI_FALLBACKS])].filter(
@@ -159,6 +196,13 @@ async function generateReportText(prompt) {
     }
   }
   throw lastErr || new Error('All Vertex model candidates failed.');
+}
+
+async function generateReportText(prompt) {
+  if (GEMINI_API_KEY) {
+    return generateReportTextWithGeminiApiKey(prompt);
+  }
+  return generateReportTextWithVertex(prompt);
 }
 
 async function loadIncident({ incidentId, incidentData }) {
@@ -349,12 +393,22 @@ async function runGenerate(req, opts) {
 }
 
 app.get('/api/scribe/health', (req, res) => {
+  const generationMode = GEMINI_API_KEY
+    ? 'generative_language_api'
+    : VERTEX_PROJECT_ID
+      ? 'vertex_ai'
+      : 'none';
   res.json({
     ok: true,
     service: 'fraudlens-scribe-api',
     requireAuth: REQUIRE_AUTH,
     firebaseProjectId: FIREBASE_PROJECT_ID || null,
     firestore: Boolean(db && firestoreReady),
+    generation: {
+      mode: generationMode,
+      geminiApiKeyConfigured: Boolean(GEMINI_API_KEY),
+      geminiModel: GEMINI_API_KEY ? GEMINI_MODEL : null
+    },
     vertex: {
       projectId: VERTEX_PROJECT_ID || null,
       location: VERTEX_LOCATION || null,

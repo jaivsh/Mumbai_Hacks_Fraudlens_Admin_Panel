@@ -1,0 +1,25 @@
+node_modules
+build
+.git
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+coverage
+.hypothesis
+__pycache__
+
+# Other services / large dirs (not needed for CRA build)
+ml
+deployed_model
+assistant_api
+scribe_api
+Hyperledger_chain
+harbinger_resources_site
+marketing_site
+synthetic_transactions_source2.csv
+*.csv
+
+# Docs only slow COPY slightly; safe to include for rare tooling. Exclude heavy trees:
+.gitignore

@@ -1,0 +1,107 @@
+# Cloud Build: FraudLens admin panel (CRA) → Docker → push to Artifact Registry.
+#
+# REACT_APP_* values are baked in at image build time. Set them as substitutions
+# on the build (Trigger → Substitution variables) or pass --substitutions on CLI.
+#
+# Example:
+#   gcloud builds submit --config=cloudbuild.admin-panel.yaml \
+#     --substitutions=_REACT_APP_FIREBASE_API_KEY=xxx,_REACT_APP_GEMINI_API_KEY=yyy,...
+#
+# See .env.example for the full list of variables and what each feature needs.
+
+substitutions:
+  _REGION: asia-south1
+  _REPO: containers
+  _IMAGE_NAME: fraudlens-admin-panel
+  # Set these in your trigger (do not commit secrets to git):
+  _REACT_APP_FIREBASE_API_KEY: ""
+  _REACT_APP_FIREBASE_AUTH_DOMAIN: ""
+  _REACT_APP_FIREBASE_PROJECT_ID: ""
+  _REACT_APP_FIREBASE_STORAGE_BUCKET: ""
+  _REACT_APP_FIREBASE_MESSAGING_SENDER_ID: ""
+  _REACT_APP_FIREBASE_APP_ID: ""
+  _REACT_APP_FIREBASE_MEASUREMENT_ID: ""
+  _REACT_APP_CHRONOS_API: ""
+  _REACT_APP_CHRONOS_API_URL: ""
+  _REACT_APP_FRAUD_API_URL: ""
+  _REACT_APP_ASSISTANT_API: ""
+  _REACT_APP_ASSISTANT_ALLOW_DEMO: "false"
+  _REACT_APP_GEMINI_API_KEY: ""
+  _REACT_APP_GEMINI_MODEL: ""
+  _REACT_APP_SCRIBE_ORG_NAME: ""
+  _REACT_APP_SCRIBE_LOGO_URL: ""
+  _REACT_APP_SCRIBE_DPO_NAME: ""
+  _REACT_APP_SCRIBE_DPO_EMAIL: ""
+  _REACT_APP_SCRIBE_DPO_PHONE: ""
+  _REACT_APP_SCRIBE_CONTACT_EMAIL: ""
+  _REACT_APP_DEMO_IT_EMAIL: ""
+  _REACT_APP_DEMO_IT_PASSWORD: ""
+  _REACT_APP_DEMO_EXEC_EMAIL: ""
+  _REACT_APP_DEMO_EXEC_PASSWORD: ""
+
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - Dockerfile.admin-panel
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_IMAGE_NAME}:$SHORT_SHA
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_IMAGE_NAME}:latest
+      - --build-arg
+      - REACT_APP_FIREBASE_API_KEY=${_REACT_APP_FIREBASE_API_KEY}
+      - --build-arg
+      - REACT_APP_FIREBASE_AUTH_DOMAIN=${_REACT_APP_FIREBASE_AUTH_DOMAIN}
+      - --build-arg
+      - REACT_APP_FIREBASE_PROJECT_ID=${_REACT_APP_FIREBASE_PROJECT_ID}
+      - --build-arg
+      - REACT_APP_FIREBASE_STORAGE_BUCKET=${_REACT_APP_FIREBASE_STORAGE_BUCKET}
+      - --build-arg
+      - REACT_APP_FIREBASE_MESSAGING_SENDER_ID=${_REACT_APP_FIREBASE_MESSAGING_SENDER_ID}
+      - --build-arg
+      - REACT_APP_FIREBASE_APP_ID=${_REACT_APP_FIREBASE_APP_ID}
+      - --build-arg
+      - REACT_APP_FIREBASE_MEASUREMENT_ID=${_REACT_APP_FIREBASE_MEASUREMENT_ID}
+      - --build-arg
+      - REACT_APP_CHRONOS_API=${_REACT_APP_CHRONOS_API}
+      - --build-arg
+      - REACT_APP_CHRONOS_API_URL=${_REACT_APP_CHRONOS_API_URL}
+      - --build-arg
+      - REACT_APP_FRAUD_API_URL=${_REACT_APP_FRAUD_API_URL}
+      - --build-arg
+      - REACT_APP_ASSISTANT_API=${_REACT_APP_ASSISTANT_API}
+      - --build-arg
+      - REACT_APP_ASSISTANT_ALLOW_DEMO=${_REACT_APP_ASSISTANT_ALLOW_DEMO}
+      - --build-arg
+      - REACT_APP_GEMINI_API_KEY=${_REACT_APP_GEMINI_API_KEY}
+      - --build-arg
+      - REACT_APP_GEMINI_MODEL=${_REACT_APP_GEMINI_MODEL}
+      - --build-arg
+      - REACT_APP_SCRIBE_ORG_NAME=${_REACT_APP_SCRIBE_ORG_NAME}
+      - --build-arg
+      - REACT_APP_SCRIBE_LOGO_URL=${_REACT_APP_SCRIBE_LOGO_URL}
+      - --build-arg
+      - REACT_APP_SCRIBE_DPO_NAME=${_REACT_APP_SCRIBE_DPO_NAME}
+      - --build-arg
+      - REACT_APP_SCRIBE_DPO_EMAIL=${_REACT_APP_SCRIBE_DPO_EMAIL}
+      - --build-arg
+      - REACT_APP_SCRIBE_DPO_PHONE=${_REACT_APP_SCRIBE_DPO_PHONE}
+      - --build-arg
+      - REACT_APP_SCRIBE_CONTACT_EMAIL=${_REACT_APP_SCRIBE_CONTACT_EMAIL}
+      - --build-arg
+      - REACT_APP_DEMO_IT_EMAIL=${_REACT_APP_DEMO_IT_EMAIL}
+      - --build-arg
+      - REACT_APP_DEMO_IT_PASSWORD=${_REACT_APP_DEMO_IT_PASSWORD}
+      - --build-arg
+      - REACT_APP_DEMO_EXEC_EMAIL=${_REACT_APP_DEMO_EXEC_EMAIL}
+      - --build-arg
+      - REACT_APP_DEMO_EXEC_PASSWORD=${_REACT_APP_DEMO_EXEC_PASSWORD}
+      - .
+
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_IMAGE_NAME}:$SHORT_SHA
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_IMAGE_NAME}:latest
+
+options:
+  logging: CLOUD_LOGGING_ONLY

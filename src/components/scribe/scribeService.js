@@ -17,6 +17,7 @@ import {
   REPORT_SUBJECTS,
   AUTO_REPORT_TYPES
 } from './reportFormats';
+import { auth } from '../../firebase';
 import { ingestReportToAssistant } from '../../services/assistantService';
 
 function buildSubject(reportType, incidentId) {
@@ -44,41 +45,75 @@ export async function generateAndSaveReport(db, incidentId, reportType) {
     throw new Error(`No prompt template for report type: ${reportType}.`);
   }
 
-  const prompt = promptTemplate.replace(
-    '{incident_data}',
-    JSON.stringify(incidentData, null, 2)
-  );
+  const scribeApiBase = process.env.REACT_APP_SCRIBE_API?.trim();
+  let reportText;
 
-  const apiKey = process.env.REACT_APP_GEMINI_API_KEY?.trim();
-  if (!apiKey) {
-    throw new Error(
-      'Missing REACT_APP_GEMINI_API_KEY. Add it in .env (get a key at https://aistudio.google.com/apikey).'
-    );
-  }
-
-  const modelId =
-    process.env.REACT_APP_GEMINI_MODEL?.trim() || 'models/gemini-2.5-flash';
-  const geminiResponse = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/${modelId}:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }]
-      })
+  if (scribeApiBase) {
+    const user = auth.currentUser;
+    if (!user) {
+      throw new Error('Sign in required to generate reports (Scribe API needs a Firebase ID token).');
     }
-  );
+    const token = await user.getIdToken();
+    const url = `${scribeApiBase.replace(/\/$/, '')}/api/scribe/generate`;
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        reportType,
+        incidentData,
+        persist: false,
+        uploadToChronos: false,
+        ingestToAssistant: false
+      })
+    });
+    const body = await resp.json().catch(() => ({}));
+    if (!resp.ok) {
+      throw new Error(body.error || `Scribe API error (${resp.status})`);
+    }
+    reportText =
+      typeof body.content === 'string' && body.content.trim()
+        ? body.content
+        : 'Scribe API response did not contain text output.';
+  } else {
+    const prompt = promptTemplate.replace(
+      '{incident_data}',
+      JSON.stringify(incidentData, null, 2)
+    );
 
-  if (!geminiResponse.ok) {
-    const errorBody = await geminiResponse.json();
-    const msg = errorBody.error?.message || 'Gemini API error';
-    throw new Error(msg);
+    const apiKey = process.env.REACT_APP_GEMINI_API_KEY?.trim();
+    if (!apiKey) {
+      throw new Error(
+        'Missing REACT_APP_GEMINI_API_KEY. Add it in .env (get a key at https://aistudio.google.com/apikey), or set REACT_APP_SCRIBE_API for cloud generation.'
+      );
+    }
+
+    const modelId =
+      process.env.REACT_APP_GEMINI_MODEL?.trim() || 'models/gemini-2.5-flash';
+    const geminiResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/${modelId}:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }]
+        })
+      }
+    );
+
+    if (!geminiResponse.ok) {
+      const errorBody = await geminiResponse.json();
+      const msg = errorBody.error?.message || 'Gemini API error';
+      throw new Error(msg);
+    }
+
+    const result = await geminiResponse.json();
+    reportText =
+      result.candidates?.[0]?.content?.parts?.[0]?.text ||
+      'Gemini response did not contain text output.';
   }
-
-  const result = await geminiResponse.json();
-  const reportText =
-    result.candidates?.[0]?.content?.parts?.[0]?.text ||
-    'Gemini response did not contain text output.';
 
   const recipientsList = REPORT_RECIPIENTS[reportType] || [];
   const subject = buildSubject(reportType, incidentId);
