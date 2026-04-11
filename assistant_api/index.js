@@ -67,6 +67,9 @@ const BQ_ARTIFACTS_TABLE = (process.env.BQ_ARTIFACTS_TABLE || 'doc_artifacts').t
 const BQ_CHUNKS_TABLE = (process.env.BQ_CHUNKS_TABLE || 'rag_chunks').trim();
 const BQ_FACTS_TABLE = (process.env.BQ_FACTS_TABLE || 'incident_facts').trim();
 const ENABLE_VECTOR_SEARCH = (process.env.ENABLE_VECTOR_SEARCH || 'true').trim().toLowerCase() !== 'false';
+/** Set VERTEX_ASSISTANT_NO_JSON_MIME=true if Vertex returns errors on responseMimeType for your model/region. */
+const VERTEX_ASSISTANT_JSON_MIME =
+  (process.env.VERTEX_ASSISTANT_NO_JSON_MIME || '').trim().toLowerCase() !== 'true';
 
 const bigquery = BQ_PROJECT_ID ? new BigQuery({ projectId: BQ_PROJECT_ID }) : null;
 const vertex = VERTEX_PROJECT_ID ? new VertexAI({ project: VERTEX_PROJECT_ID, location: VERTEX_LOCATION }) : null;
@@ -414,6 +417,50 @@ function sanitizeChatHistory(raw) {
   return merged;
 }
 
+/**
+ * Gemini sometimes wraps JSON in ```json fences or adds a preamble. Never throw — chat must always get a 200 + body.
+ */
+function parseAssistantModelJson(rawText) {
+  let s = String(rawText || '').trim();
+  if (!s) return { answer: '(No answer)', citations: [] };
+
+  const fence = s.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (fence) s = fence[1].trim();
+
+  const tryParse = (t) => {
+    try {
+      return JSON.parse(t);
+    } catch {
+      return null;
+    }
+  };
+
+  let parsed = tryParse(s);
+  if (parsed && typeof parsed === 'object') {
+    return {
+      answer: String(parsed.answer ?? '').trim() || s,
+      citations: Array.isArray(parsed.citations) ? parsed.citations : []
+    };
+  }
+
+  const start = s.indexOf('{');
+  const end = s.lastIndexOf('}');
+  if (start >= 0 && end > start) {
+    parsed = tryParse(s.slice(start, end + 1));
+    if (parsed && typeof parsed === 'object') {
+      return {
+        answer: String(parsed.answer ?? '').trim() || s.slice(start, end + 1),
+        citations: Array.isArray(parsed.citations) ? parsed.citations : []
+      };
+    }
+    console.error('Assistant model JSON parse (substring) failed; returning plain text answer.');
+    return { answer: s, citations: [] };
+  }
+
+  console.error('Assistant model output not valid JSON; returning plain text answer.');
+  return { answer: s, citations: [] };
+}
+
 async function generateAnswer({ question, facts, passages, history, audience }) {
   if (!vertex) throw new Error('Vertex AI not configured (VERTEX_PROJECT_ID missing).');
   const modelCandidates = [
@@ -485,7 +532,8 @@ async function generateAnswer({ question, facts, passages, history, audience }) 
         contents,
         generationConfig: {
           temperature,
-          maxOutputTokens
+          maxOutputTokens,
+          ...(VERTEX_ASSISTANT_JSON_MIME ? { responseMimeType: 'application/json' } : {})
         }
       });
       break;
@@ -509,23 +557,7 @@ async function generateAnswer({ question, facts, passages, history, audience }) 
   const trimmed = String(text || '').trim();
   if (!trimmed) throw new Error('Model returned empty output.');
 
-  // Strict JSON parse with fallback extraction; if still invalid, degrade gracefully to plain text.
-  try {
-    return JSON.parse(trimmed);
-  } catch (_) {
-    const start = trimmed.indexOf('{');
-    const end = trimmed.lastIndexOf('}');
-    if (start >= 0 && end > start) {
-      try {
-        return JSON.parse(trimmed.slice(start, end + 1));
-      } catch (e2) {
-        console.error('Assistant model JSON parse (substring) failed; returning plain text answer.', e2);
-        return { answer: trimmed, citations: [] };
-      }
-    }
-    console.error('Assistant model output not valid JSON; returning plain text answer.');
-    return { answer: trimmed, citations: [] };
-  }
+  return parseAssistantModelJson(trimmed);
 }
 
 function bqTableRef(tableName) {
@@ -588,16 +620,26 @@ async function retrievePassages({ question, incidentId }) {
         incidentId: incidentId || null,
         qEmb
       };
-      const baseTable = incidentId
-        ? `(SELECT * FROM ${bqTableRef(BQ_CHUNKS_TABLE)} WHERE incidentId = @incidentId)`
-        : `${bqTableRef(BQ_CHUNKS_TABLE)}`;
-
-      const sql = `
+      const chunksTable = bqTableRef(BQ_CHUNKS_TABLE);
+      // BigQuery: TABLE (subquery) is invalid for VECTOR_SEARCH — use a bare parenthesized subquery when filtering.
+      const sql = incidentId
+        ? `
         SELECT
           incidentId, reportType, objectPath, sha256, fileUrl, chunkText,
           distance
         FROM VECTOR_SEARCH(
-          TABLE ${baseTable},
+          (SELECT * FROM ${chunksTable} WHERE incidentId = @incidentId),
+          'embedding',
+          @qEmb,
+          top_k => 8
+        )
+      `
+        : `
+        SELECT
+          incidentId, reportType, objectPath, sha256, fileUrl, chunkText,
+          distance
+        FROM VECTOR_SEARCH(
+          TABLE ${chunksTable},
           'embedding',
           @qEmb,
           top_k => 8
